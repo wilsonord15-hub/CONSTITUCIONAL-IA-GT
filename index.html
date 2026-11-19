@@ -5,216 +5,450 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DR CONSTITUCIONAL IA</title>
+
 <style>
-*{box-sizing:border-box}
-body{
- margin:0;background:#061629;color:white;
- font-family:Arial,sans-serif;text-align:center;
+* {
+  box-sizing: border-box;
 }
-header{padding:22px 12px}
-h1{margin:5px;color:#fff}
-header p{color:#9edfff}
-main{max-width:850px;margin:auto;padding:15px}
-.robot{
- position:relative;width:min(100%,500px);
- margin:auto;overflow:hidden;border-radius:22px;
- border:2px solid #13bfff;
- box-shadow:0 0 25px #008cff66;
+
+body {
+  margin: 0;
+  background: #061629;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
 }
-.robot img{display:block;width:100%;height:auto}
-.mouth{
- position:absolute;left:34%;top:40.5%;
- width:15%;height:2.8%;
- background:#25151a;border-radius:50%;
- transform:scaleY(.15);
- opacity:.85;
+
+header {
+  padding: 22px 12px;
 }
-.speaking .mouth{
- animation:talk .19s infinite alternate;
+
+h1 {
+  margin: 5px;
+  color: #fff;
 }
-@keyframes talk{
- from{transform:scaleY(.15)}
- to{transform:scaleY(1.8)}
+
+header p {
+  color: #9edfff;
 }
-.eye{
- position:absolute;top:25.5%;height:3.5%;
- width:17%;background:#d5eaff;
- border-radius:50%;
- transform:scaleY(0);
+
+main {
+  max-width: 850px;
+  margin: auto;
+  padding: 15px;
 }
-.eye.left{left:25%}
-.eye.right{left:49%}
-.blink .eye{
- animation:blink .18s ease-in-out;
+
+.robot {
+  position: relative;
+  width: min(100%, 625px);
+  margin: auto;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 2px solid #13bfff;
+  box-shadow: 0 0 25px #008cff66;
 }
-@keyframes blink{
- 0%,100%{transform:scaleY(0)}
- 50%{transform:scaleY(1)}
+
+.robot img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
-.status{color:#5bdcff;margin:15px}
-.controls{
- display:flex;gap:12px;justify-content:center;
- flex-wrap:wrap;margin:20px 0;
+
+.mouth {
+  position: absolute;
+  left: 34%;
+  top: 40.5%;
+  width: 15%;
+  height: 2.8%;
+  background: #25151a;
+  border-radius: 50%;
+  transform: scaleY(.15);
+  opacity: .85;
 }
-button{
- background:#008edb;color:white;border:0;
- border-radius:12px;padding:15px 24px;
- font-size:16px;font-weight:bold;cursor:pointer;
+
+.speaking .mouth {
+  animation: talk .19s infinite alternate;
 }
-button:hover{background:#00baff}
-input{
- width:100%;padding:15px;border-radius:10px;
- border:1px solid #299bd4;font-size:16px;
+
+@keyframes talk {
+  from { transform: scaleY(.15); }
+  to { transform: scaleY(1.8); }
 }
-.note{color:#a9c5dc;font-size:13px;margin:18px}
+
+.eye {
+  position: absolute;
+  top: 25.5%;
+  height: 3.5%;
+  width: 17%;
+  background: #d5eaff;
+  border-radius: 50%;
+  transform: scaleY(0);
+}
+
+.eye.left {
+  left: 25%;
+}
+
+.eye.right {
+  left: 49%;
+}
+
+.blink .eye {
+  animation: blink .18s ease-in-out;
+}
+
+@keyframes blink {
+  0%, 100% { transform: scaleY(0); }
+  50% { transform: scaleY(1); }
+}
+
+.status {
+  color: #5bdcff;
+  margin: 15px auto;
+  line-height: 1.5;
+  max-width: 750px;
+  overflow-wrap: anywhere;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+button {
+  background: #008edb;
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  padding: 15px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #00baff;
+}
+
+button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #299bd4;
+  font-size: 16px;
+}
+
+.note {
+  color: #a9c5dc;
+  font-size: 13px;
+  margin: 18px;
+}
+
+@media (max-width: 500px) {
+  h1 {
+    font-size: 23px;
+  }
+
+  button {
+    padding: 13px 17px;
+    font-size: 14px;
+  }
+}
 </style>
 </head>
+
 <body>
 
 <header>
-<h1>⚖ DR CONSTITUCIONAL IA</h1>
-<p>Asistente de Inteligencia Artificial en Derecho Constitucional</p>
+  <h1>⚖ DR CONSTITUCIONAL IA</h1>
+  <p>Asistente de Inteligencia Artificial en Derecho Constitucional</p>
 </header>
 
 <main>
-<div class="robot" id="robot">
-<img src="Retrato%20futurista%20del%20Dr.%20Constitucional%20IA.png" alt="DR CONSTITUCIONAL IA">
-<div class="eye left"></div>
-<div class="eye right"></div>
-<div class="mouth"></div>
-</div>
 
-<div class="status" id="status">Sistema preparado</div>
+  <div class="robot" id="robot">
+    <img
+      src="Retrato%20futurista%20del%20Dr.%20Constitucional%20IA.png"
+      alt="DR CONSTITUCIONAL IA"
+    >
+    <div class="eye left"></div>
+    <div class="eye right"></div>
+    <div class="mouth"></div>
+  </div>
 
-<div class="controls">
-<button onclick="repetir()">🎙 REPETIR</button>
-<button onclick="conversar()">💬 CONVERSAR</button>
-</div>
+  <div class="status" id="status" aria-live="polite">
+    Sistema preparado
+  </div>
 
-<input id="pregunta" placeholder="Escribe tu pregunta o mensaje...">
+  <div class="controls">
+    <button id="btnRepetir" onclick="repetir()">
+      🎙 REPETIR
+    </button>
 
-<div class="controls">
-<button onclick="hablarTexto()">🔊 HACER HABLAR AL ROBOT</button>
-<button onclick="detener()">⏹ DETENER</button>
-</div>
+    <button id="btnConversar" onclick="conversar()">
+      💬 CONVERSAR
+    </button>
+  </div>
 
-<p class="note">
-Prototipo inicial. La conexión con OpenAI se incorporará en la siguiente etapa.
-</p>
+  <input
+    id="pregunta"
+    type="text"
+    placeholder="Escribe tu pregunta o mensaje..."
+    autocomplete="off"
+  >
+
+  <div class="controls">
+    <button onclick="hablarTexto()">
+      🔊 HACER HABLAR AL ROBOT
+    </button>
+
+    <button onclick="detener()">
+      ⏹ DETENER
+    </button>
+  </div>
+
+  <p class="note">
+    Asistente académico de Inteligencia Artificial especializado
+    en Derecho Constitucional.
+  </p>
+
 </main>
 
 <script>
-const robot=document.getElementById("robot");
-const status=document.getElementById("status");
+"use strict";
 
-function limpiarTextoParaVoz(texto){
-  return texto
-    .replace(/```[\s\S]*?```/g, "")
+const URL_ASISTENTE =
+  "https://dr-constitucional-ia.wilsonord15.workers.dev/";
+
+const robot = document.getElementById("robot");
+const status = document.getElementById("status");
+const campoPregunta = document.getElementById("pregunta");
+const btnConversar = document.getElementById("btnConversar");
+
+let escuchaActiva = null;
+
+/* LIMPIAR FORMATO PARA LA VOZ */
+
+function limpiarTextoParaVoz(texto) {
+  return String(texto || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/\*(.*?)\*/g, "$1")
-    .replace(/#+\s*/g, "")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
     .replace(/^\s*\d+[.)]\s+/gm, "")
     .replace(/^\s*[-•]\s+/gm, "")
     .replace(/[*_~`>|]/g, "")
+    .replace(/^\s*[-=]{3,}\s*$/gm, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
- if(!("speechSynthesis" in window)){
-  status.textContent="Tu navegador no admite voz.";
-  return;
- }
- speechSynthesis.cancel();
- const voz=new SpeechSynthesisUtterance(texto);
- voz.lang="es-GT";
- voz.rate=0.95;
 
- voz.onstart=()=>{
-  robot.classList.add("speaking");
-  status.textContent="DR CONSTITUCIONAL IA está hablando...";
- };
- voz.onend=()=>{
-  robot.classList.remove("speaking");
-  status.textContent="Sistema preparado";
- };
- speechSynthesis.speak(voz);
-}
+/* HACER HABLAR AL ROBOT */
 
-function hablarTexto(){
- const texto=document.getElementById("pregunta").value.trim();
- if(texto) hablar(texto);
- else status.textContent="Escribe primero un mensaje.";
-}
+function hablar(texto) {
+  const textoLimpio = limpiarTextoParaVoz(texto);
 
-function detener(){
- speechSynthesis.cancel();
- robot.classList.remove("speaking");
- status.textContent="Reproducción detenida";
-}
-
-function repetir(){
- const Reconocimiento=window.SpeechRecognition||
- window.webkitSpeechRecognition;
-
- if(!Reconocimiento){
-  status.textContent="Usa Google Chrome para activar el micrófono.";
-  return;
- }
-
- const escucha=new Reconocimiento();
- escucha.lang="es-GT";
- escucha.onstart=()=>status.textContent="Escuchando...";
- escucha.onresult=(e)=>{
-  const texto=e.results[0][0].transcript;
-  document.getElementById("pregunta").value=texto;
-  hablar(texto);
- };
- escucha.onerror=()=>status.textContent="No se pudo reconocer la voz.";
- escucha.start();
-}
-
-async function conversar(){
-  const pregunta = document.getElementById("pregunta").value.trim();
-
-  if(!pregunta){
-    status.textContent = "Escribe una pregunta para comenzar.";
+  if (!textoLimpio) {
+    status.textContent = "No hay texto para reproducir.";
     return;
   }
 
-  status.textContent = "DR CONSTITUCIONAL IA está analizando tu consulta...";
+  if (!("speechSynthesis" in window)) {
+    status.textContent = "Tu navegador no admite reproducción de voz.";
+    return;
+  }
+
+  speechSynthesis.cancel();
+
+  const voz = new SpeechSynthesisUtterance(textoLimpio);
+
+  voz.lang = "es-GT";
+  voz.rate = 0.95;
+  voz.pitch = 1;
+
+  voz.onstart = function() {
+    robot.classList.add("speaking");
+    status.textContent = "DR CONSTITUCIONAL IA está hablando...";
+  };
+
+  voz.onend = function() {
+    robot.classList.remove("speaking");
+    status.textContent = "Sistema preparado";
+  };
+
+  voz.onerror = function() {
+    robot.classList.remove("speaking");
+    status.textContent = "No fue posible reproducir la voz.";
+  };
+
+  speechSynthesis.speak(voz);
+}
+
+/* REPRODUCIR TEXTO ESCRITO */
+
+function hablarTexto() {
+  const texto = campoPregunta.value.trim();
+
+  if (!texto) {
+    status.textContent = "Escribe primero un mensaje.";
+    return;
+  }
+
+  hablar(texto);
+}
+
+/* DETENER REPRODUCCIÓN */
+
+function detener() {
+  if ("speechSynthesis" in window) {
+    speechSynthesis.cancel();
+  }
+
+  if (escuchaActiva) {
+    escuchaActiva.stop();
+    escuchaActiva = null;
+  }
+
+  robot.classList.remove("speaking");
+  status.textContent = "Reproducción detenida";
+}
+
+/* RECONOCIMIENTO DE VOZ Y REPETICIÓN */
+
+function repetir() {
+  const Reconocimiento =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!Reconocimiento) {
+    status.textContent =
+      "El reconocimiento de voz requiere Google Chrome.";
+    return;
+  }
+
+  if (escuchaActiva) {
+    escuchaActiva.stop();
+  }
+
+  const escucha = new Reconocimiento();
+  escucha.lang = "es-GT";
+  escucha.interimResults = false;
+  escucha.maxAlternatives = 1;
+
+  escuchaActiva = escucha;
+
+  escucha.onstart = function() {
+    status.textContent = "Escuchando... habla ahora.";
+  };
+
+  escucha.onresult = function(evento) {
+    const texto = evento.results[0][0].transcript;
+
+    campoPregunta.value = texto;
+    status.textContent = "Reproduciendo lo que has dicho...";
+    hablar(texto);
+  };
+
+  escucha.onerror = function() {
+    status.textContent =
+      "No se pudo reconocer la voz. Revisa el permiso del micrófono.";
+    escuchaActiva = null;
+  };
+
+  escucha.onend = function() {
+    escuchaActiva = null;
+  };
+
+  escucha.start();
+}
+
+/* CONVERSACIÓN CON INTELIGENCIA ARTIFICIAL */
+
+async function conversar() {
+  const pregunta = campoPregunta.value.trim();
+
+  if (!pregunta) {
+    status.textContent = "Escribe una pregunta para comenzar.";
+    campoPregunta.focus();
+    return;
+  }
+
+  detener();
+
+  btnConversar.disabled = true;
+  status.textContent =
+    "DR CONSTITUCIONAL IA está analizando tu consulta...";
 
   try {
-    const respuesta = await fetch(
-      "https://dr-constitucional-ia.wilsonord15.workers.dev/",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ question: pregunta })
-      }
-    );
+    const respuesta = await fetch(URL_ASISTENTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        question: pregunta
+      })
+    });
 
     const datos = await respuesta.json();
 
-    if(!respuesta.ok){
-      throw new Error(datos.error || "No se pudo obtener respuesta.");
+    if (!respuesta.ok) {
+      throw new Error(
+        datos.error || "No se pudo obtener respuesta."
+      );
+    }
+
+    if (!datos.answer) {
+      throw new Error("El asistente no devolvió una respuesta.");
     }
 
     status.textContent = datos.answer;
-   hablar(limpiarTextoParaVoz(datos.answer));
+    hablar(datos.answer);
 
-  } catch(error) {
-    status.textContent = "No fue posible conectar con el asistente. Verifica la conexión.";
-    console.error(error);
+  } catch (error) {
+    console.error("Error de conversación:", error);
+
+    status.textContent =
+      "No fue posible conectar con el asistente. " +
+      "Verifica Cloudflare y vuelve a intentarlo.";
+
+  } finally {
+    btnConversar.disabled = false;
   }
 }
 
-setInterval(()=>{
- if(!robot.classList.contains("speaking")){
-  robot.classList.add("blink");
-  setTimeout(()=>robot.classList.remove("blink"),200);
- }
-},3500);
+/* PERMITIR ENVIAR LA PREGUNTA CON ENTER */
+
+campoPregunta.addEventListener("keydown", function(evento) {
+  if (evento.key === "Enter") {
+    conversar();
+  }
+});
+
+/* PARPADEO DEL ROBOT */
+
+setInterval(function() {
+  if (!robot.classList.contains("speaking")) {
+    robot.classList.add("blink");
+
+    setTimeout(function() {
+      robot.classList.remove("blink");
+    }, 200);
+  }
+}, 3500);
+
 </script>
+
 </body>
 </html>
