@@ -54,52 +54,98 @@ main {
   height: auto;
 }
 
-/* ==================================
-   ANIMACIÓN FACIAL
-   DR CONSTITUCIONAL IA
-================================== */
+/* =================================
+   MOVIMIENTO FACIAL
+================================= */
 
-/* BOCA */
+/* BOCA ANIMADA */
 
 .mouth {
   position: absolute;
-  left: 30.5%;
-  top: 37.2%;
-  width: 8%;
-  height: 2.5%;
-  background: #281619;
-  border-radius: 50%;
+  left: 29.6%;
+  top: 36.4%;
+  width: 7.5%;
+  height: 3.4%;
+
+  background: radial-gradient(
+    ellipse at center,
+    #16090d 0%,
+    #321016 65%,
+    #5b2028 100%
+  );
+
+  border: 1px solid #6d333b;
+  border-radius: 45% 45% 50% 50%;
+
   transform: scaleY(.08);
   transform-origin: center;
-  opacity: .92;
-  box-shadow: 0 0 5px #00baff55;
+
+  opacity: 0;
+  overflow: hidden;
+
+  box-shadow:
+    0 0 5px #16090d,
+    inset 0 1px 4px #000;
 }
 
-/* MOVIMIENTO DE BOCA AL HABLAR */
+/* DIENTES */
+
+.mouth::after {
+  content: "";
+  position: absolute;
+
+  top: 9%;
+  left: 17%;
+  width: 66%;
+  height: 28%;
+
+  background: linear-gradient(
+    to bottom,
+    #ffffff,
+    #d7e5ed
+  );
+
+  border-radius: 0 0 45% 45%;
+  opacity: .95;
+}
+
+/* MOVIMIENTO AL HABLAR */
 
 .speaking .mouth {
-  animation: talk .22s infinite alternate ease-in-out;
+  opacity: 1;
+  animation: talk .24s infinite alternate ease-in-out;
 }
 
 @keyframes talk {
+
   0% {
     transform: scaleY(.12);
+    border-radius: 50%;
   }
 
-  25% {
-    transform: scaleY(.65);
+  20% {
+    transform: scaleY(.38);
+    border-radius: 45%;
   }
 
-  50% {
-    transform: scaleY(1.15);
+  40% {
+    transform: scaleY(.85);
+    border-radius: 40%;
   }
 
-  75% {
-    transform: scaleY(.35);
+  60% {
+    transform: scaleY(1.05);
+    border-radius: 35%;
+  }
+
+  80% {
+    transform: scaleY(.48);
+    border-radius: 45%;
   }
 
   100% {
-    transform: scaleY(.9);
+    transform: scaleY(.72);
+    border-radius: 40%;
   }
 }
 
@@ -110,11 +156,13 @@ main {
   top: 22.5%;
   height: 3%;
   width: 7%;
+
   background: linear-gradient(
     to bottom,
     #a66e61,
     #e0b39c
   );
+
   border-radius: 50% 50% 45% 45%;
   transform: scaleY(0);
   transform-origin: top;
@@ -136,6 +184,7 @@ main {
 }
 
 @keyframes blink {
+
   0%, 100% {
     transform: scaleY(0);
   }
@@ -153,9 +202,7 @@ main {
     0 0 12px #00baff55;
 }
 
-/* ==================================
-   CONTROLES Y ESTILOS GENERALES
-================================== */
+/* CONTROLES */
 
 .status {
   color: #5bdcff;
@@ -207,9 +254,8 @@ input {
   margin: 18px;
 }
 
-/* ADAPTACIÓN A TELÉFONOS */
-
 @media (max-width: 500px) {
+
   h1 {
     font-size: 23px;
   }
@@ -218,6 +264,7 @@ input {
     padding: 13px 17px;
     font-size: 14px;
   }
+
 }
 
 </style>
@@ -322,6 +369,7 @@ function limpiarTextoParaVoz(texto) {
 /* HACER HABLAR AL ROBOT */
 
 function hablar(texto) {
+
   const textoLimpio = limpiarTextoParaVoz(texto);
 
   if (!textoLimpio) {
@@ -366,6 +414,7 @@ function hablar(texto) {
 /* REPRODUCIR TEXTO ESCRITO */
 
 function hablarTexto() {
+
   const texto = campoPregunta.value.trim();
 
   if (!texto) {
@@ -379,6 +428,7 @@ function hablarTexto() {
 /* DETENER REPRODUCCIÓN */
 
 function detener() {
+
   if ("speechSynthesis" in window) {
     speechSynthesis.cancel();
   }
@@ -395,6 +445,7 @@ function detener() {
 /* RECONOCIMIENTO DE VOZ Y REPETICIÓN */
 
 function repetir() {
+
   const Reconocimiento =
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
@@ -423,6 +474,7 @@ function repetir() {
   };
 
   escucha.onresult = function(evento) {
+
     const texto = evento.results[0][0].transcript;
 
     campoPregunta.value = texto;
@@ -434,6 +486,7 @@ function repetir() {
   };
 
   escucha.onerror = function() {
+
     status.textContent =
       "No se pudo reconocer la voz. Revisa el permiso del micrófono.";
 
@@ -450,6 +503,7 @@ function repetir() {
 /* CONVERSACIÓN CON INTELIGENCIA ARTIFICIAL */
 
 async function conversar() {
+
   const pregunta = campoPregunta.value.trim();
 
   if (!pregunta) {
@@ -468,7 +522,9 @@ async function conversar() {
     "DR CONSTITUCIONAL IA está analizando tu consulta...";
 
   try {
+
     const respuesta = await fetch(URL_ASISTENTE, {
+
       method: "POST",
 
       headers: {
@@ -478,6 +534,7 @@ async function conversar() {
       body: JSON.stringify({
         question: pregunta
       })
+
     });
 
     const datos = await respuesta.json();
@@ -499,6 +556,7 @@ async function conversar() {
     hablar(datos.answer);
 
   } catch (error) {
+
     console.error("Error de conversación:", error);
 
     status.textContent =
@@ -506,16 +564,20 @@ async function conversar() {
       "Verifica Cloudflare y vuelve a intentarlo.";
 
   } finally {
+
     btnConversar.disabled = false;
+
   }
 }
 
 /* ENVIAR PREGUNTA CON ENTER */
 
 campoPregunta.addEventListener("keydown", function(evento) {
+
   if (evento.key === "Enter") {
     conversar();
   }
+
 });
 
 /* PARPADEO AUTOMÁTICO */
