@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DR CONSTITUCIONAL IA</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#061629;color:white;
+ font-family:Arial,sans-serif;text-align:center;
+}
+header{padding:22px 12px}
+h1{margin:5px;color:#fff}
+header p{color:#9edfff}
+main{max-width:850px;margin:auto;padding:15px}
+.robot{
+ position:relative;width:min(100%,500px);
+ margin:auto;overflow:hidden;border-radius:22px;
+ border:2px solid #13bfff;
+ box-shadow:0 0 25px #008cff66;
+}
+.robot img{display:block;width:100%;height:auto}
+.mouth{
+ position:absolute;left:34%;top:40.5%;
+ width:15%;height:2.8%;
+ background:#25151a;border-radius:50%;
+ transform:scaleY(.15);
+ opacity:.85;
+}
+.speaking .mouth{
+ animation:talk .19s infinite alternate;
+}
+@keyframes talk{
+ from{transform:scaleY(.15)}
+ to{transform:scaleY(1.8)}
+}
+.eye{
+ position:absolute;top:25.5%;height:3.5%;
+ width:17%;background:#d5eaff;
+ border-radius:50%;
+ transform:scaleY(0);
+}
+.eye.left{left:25%}
+.eye.right{left:49%}
+.blink .eye{
+ animation:blink .18s ease-in-out;
+}
+@keyframes blink{
+ 0%,100%{transform:scaleY(0)}
+ 50%{transform:scaleY(1)}
+}
+.status{color:#5bdcff;margin:15px}
+.controls{
+ display:flex;gap:12px;justify-content:center;
+ flex-wrap:wrap;margin:20px 0;
+}
+button{
+ background:#008edb;color:white;border:0;
+ border-radius:12px;padding:15px 24px;
+ font-size:16px;font-weight:bold;cursor:pointer;
+}
+button:hover{background:#00baff}
+input{
+ width:100%;padding:15px;border-radius:10px;
+ border:1px solid #299bd4;font-size:16px;
+}
+.note{color:#a9c5dc;font-size:13px;margin:18px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>⚖ DR CONSTITUCIONAL IA</h1>
+<p>Asistente de Inteligencia Artificial en Derecho Constitucional</p>
+</header>
+
+<main>
+<div class="robot" id="robot">
+<img src="robot.png" alt="DR CONSTITUCIONAL IA">
+<div class="eye left"></div>
+<div class="eye right"></div>
+<div class="mouth"></div>
+</div>
+
+<div class="status" id="status">Sistema preparado</div>
+
+<div class="controls">
+<button onclick="repetir()">🎙 REPETIR</button>
+<button onclick="conversar()">💬 CONVERSAR</button>
+</div>
+
+<input id="pregunta" placeholder="Escribe tu pregunta o mensaje...">
+
+<div class="controls">
+<button onclick="hablarTexto()">🔊 HACER HABLAR AL ROBOT</button>
+<button onclick="detener()">⏹ DETENER</button>
+</div>
+
+<p class="note">
+Prototipo inicial. La conexión con OpenAI se incorporará en la siguiente etapa.
+</p>
+</main>
+
+<script>
+const robot=document.getElementById("robot");
+const status=document.getElementById("status");
+
+function hablar(texto){
+ if(!("speechSynthesis" in window)){
+  status.textContent="Tu navegador no admite voz.";
+  return;
+ }
+ speechSynthesis.cancel();
+ const voz=new SpeechSynthesisUtterance(texto);
+ voz.lang="es-GT";
+ voz.rate=0.95;
+
+ voz.onstart=()=>{
+  robot.classList.add("speaking");
+  status.textContent="DR CONSTITUCIONAL IA está hablando...";
+ };
+ voz.onend=()=>{
+  robot.classList.remove("speaking");
+  status.textContent="Sistema preparado";
+ };
+ speechSynthesis.speak(voz);
+}
+
+function hablarTexto(){
+ const texto=document.getElementById("pregunta").value.trim();
+ if(texto) hablar(texto);
+ else status.textContent="Escribe primero un mensaje.";
+}
+
+function detener(){
+ speechSynthesis.cancel();
+ robot.classList.remove("speaking");
+ status.textContent="Reproducción detenida";
+}
+
+function repetir(){
+ const Reconocimiento=window.SpeechRecognition||
+ window.webkitSpeechRecognition;
+
+ if(!Reconocimiento){
+  status.textContent="Usa Google Chrome para activar el micrófono.";
+  return;
+ }
+
+ const escucha=new Reconocimiento();
+ escucha.lang="es-GT";
+ escucha.onstart=()=>status.textContent="Escuchando...";
+ escucha.onresult=(e)=>{
+  const texto=e.results[0][0].transcript;
+  document.getElementById("pregunta").value=texto;
+  hablar(texto);
+ };
+ escucha.onerror=()=>status.textContent="No se pudo reconocer la voz.";
+ escucha.start();
+}
+
+function conversar(){
+ status.textContent="Modo conversación seleccionado.";
+ hablar("Bienvenido. Soy DR Constitucional IA. Estoy preparado para conversar sobre Derecho Constitucional. La conexión de inteligencia artificial se habilitará en la siguiente etapa.");
+}
+
+setInterval(()=>{
+ if(!robot.classList.contains("speaking")){
+  robot.classList.add("blink");
+  setTimeout(()=>robot.classList.remove("blink"),200);
+ }
+},3500);
+</script>
+</body>
+</html>
