@@ -54,53 +54,108 @@ main {
   height: auto;
 }
 
+/* ==================================
+   ANIMACIÓN FACIAL
+   DR CONSTITUCIONAL IA
+================================== */
+
+/* BOCA */
+
 .mouth {
   position: absolute;
-  left: 34%;
-  top: 40.5%;
-  width: 15%;
-  height: 2.8%;
-  background: #25151a;
+  left: 30.5%;
+  top: 37.2%;
+  width: 8%;
+  height: 2.5%;
+  background: #281619;
   border-radius: 50%;
-  transform: scaleY(.15);
-  opacity: .85;
+  transform: scaleY(.08);
+  transform-origin: center;
+  opacity: .92;
+  box-shadow: 0 0 5px #00baff55;
 }
 
+/* MOVIMIENTO DE BOCA AL HABLAR */
+
 .speaking .mouth {
-  animation: talk .19s infinite alternate;
+  animation: talk .22s infinite alternate ease-in-out;
 }
 
 @keyframes talk {
-  from { transform: scaleY(.15); }
-  to { transform: scaleY(1.8); }
+  0% {
+    transform: scaleY(.12);
+  }
+
+  25% {
+    transform: scaleY(.65);
+  }
+
+  50% {
+    transform: scaleY(1.15);
+  }
+
+  75% {
+    transform: scaleY(.35);
+  }
+
+  100% {
+    transform: scaleY(.9);
+  }
 }
+
+/* OJOS */
 
 .eye {
   position: absolute;
-  top: 25.5%;
-  height: 3.5%;
-  width: 17%;
-  background: #d5eaff;
-  border-radius: 50%;
+  top: 22.5%;
+  height: 3%;
+  width: 7%;
+  background: linear-gradient(
+    to bottom,
+    #a66e61,
+    #e0b39c
+  );
+  border-radius: 50% 50% 45% 45%;
   transform: scaleY(0);
+  transform-origin: top;
+  opacity: .95;
 }
 
 .eye.left {
-  left: 25%;
+  left: 27%;
 }
 
 .eye.right {
-  left: 49%;
+  left: 34.7%;
 }
 
+/* PARPADEO */
+
 .blink .eye {
-  animation: blink .18s ease-in-out;
+  animation: blink .16s ease-in-out;
 }
 
 @keyframes blink {
-  0%, 100% { transform: scaleY(0); }
-  50% { transform: scaleY(1); }
+  0%, 100% {
+    transform: scaleY(0);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
 }
+
+/* ILUMINACIÓN AL HABLAR */
+
+.robot.speaking {
+  box-shadow:
+    0 0 25px #008cff66,
+    0 0 12px #00baff55;
+}
+
+/* ==================================
+   CONTROLES Y ESTILOS GENERALES
+================================== */
 
 .status {
   color: #5bdcff;
@@ -152,6 +207,8 @@ input {
   margin: 18px;
 }
 
+/* ADAPTACIÓN A TELÉFONOS */
+
 @media (max-width: 500px) {
   h1 {
     font-size: 23px;
@@ -162,6 +219,7 @@ input {
     font-size: 14px;
   }
 }
+
 </style>
 </head>
 
@@ -175,13 +233,16 @@ input {
 <main>
 
   <div class="robot" id="robot">
+
     <img
       src="Retrato%20futurista%20del%20Dr.%20Constitucional%20IA.png"
       alt="DR CONSTITUCIONAL IA"
     >
+
     <div class="eye left"></div>
     <div class="eye right"></div>
     <div class="mouth"></div>
+
   </div>
 
   <div class="status" id="status" aria-live="polite">
@@ -189,6 +250,7 @@ input {
   </div>
 
   <div class="controls">
+
     <button id="btnRepetir" onclick="repetir()">
       🎙 REPETIR
     </button>
@@ -196,6 +258,7 @@ input {
     <button id="btnConversar" onclick="conversar()">
       💬 CONVERSAR
     </button>
+
   </div>
 
   <input
@@ -206,6 +269,7 @@ input {
   >
 
   <div class="controls">
+
     <button onclick="hablarTexto()">
       🔊 HACER HABLAR AL ROBOT
     </button>
@@ -213,6 +277,7 @@ input {
     <button onclick="detener()">
       ⏹ DETENER
     </button>
+
   </div>
 
   <p class="note">
@@ -245,7 +310,7 @@ function limpiarTextoParaVoz(texto) {
     .replace(/\*(.*?)\*/g, "$1")
     .replace(/__(.*?)__/g, "$1")
     .replace(/_(.*?)_/g, "$1")
-    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*#{1,6}\s*/gm, "")
     .replace(/^\s*\d+[.)]\s+/gm, "")
     .replace(/^\s*[-•]\s+/gm, "")
     .replace(/[*_~`>|]/g, "")
@@ -265,7 +330,8 @@ function hablar(texto) {
   }
 
   if (!("speechSynthesis" in window)) {
-    status.textContent = "Tu navegador no admite reproducción de voz.";
+    status.textContent =
+      "Tu navegador no admite reproducción de voz.";
     return;
   }
 
@@ -279,7 +345,8 @@ function hablar(texto) {
 
   voz.onstart = function() {
     robot.classList.add("speaking");
-    status.textContent = "DR CONSTITUCIONAL IA está hablando...";
+    status.textContent =
+      "DR CONSTITUCIONAL IA está hablando...";
   };
 
   voz.onend = function() {
@@ -289,7 +356,8 @@ function hablar(texto) {
 
   voz.onerror = function() {
     robot.classList.remove("speaking");
-    status.textContent = "No fue posible reproducir la voz.";
+    status.textContent =
+      "No fue posible reproducir la voz.";
   };
 
   speechSynthesis.speak(voz);
@@ -342,6 +410,7 @@ function repetir() {
   }
 
   const escucha = new Reconocimiento();
+
   escucha.lang = "es-GT";
   escucha.interimResults = false;
   escucha.maxAlternatives = 1;
@@ -349,20 +418,25 @@ function repetir() {
   escuchaActiva = escucha;
 
   escucha.onstart = function() {
-    status.textContent = "Escuchando... habla ahora.";
+    status.textContent =
+      "Escuchando... habla ahora.";
   };
 
   escucha.onresult = function(evento) {
     const texto = evento.results[0][0].transcript;
 
     campoPregunta.value = texto;
-    status.textContent = "Reproduciendo lo que has dicho...";
+
+    status.textContent =
+      "Reproduciendo lo que has dicho...";
+
     hablar(texto);
   };
 
   escucha.onerror = function() {
     status.textContent =
       "No se pudo reconocer la voz. Revisa el permiso del micrófono.";
+
     escuchaActiva = null;
   };
 
@@ -379,7 +453,9 @@ async function conversar() {
   const pregunta = campoPregunta.value.trim();
 
   if (!pregunta) {
-    status.textContent = "Escribe una pregunta para comenzar.";
+    status.textContent =
+      "Escribe una pregunta para comenzar.";
+
     campoPregunta.focus();
     return;
   }
@@ -387,15 +463,18 @@ async function conversar() {
   detener();
 
   btnConversar.disabled = true;
+
   status.textContent =
     "DR CONSTITUCIONAL IA está analizando tu consulta...";
 
   try {
     const respuesta = await fetch(URL_ASISTENTE, {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json"
       },
+
       body: JSON.stringify({
         question: pregunta
       })
@@ -410,10 +489,13 @@ async function conversar() {
     }
 
     if (!datos.answer) {
-      throw new Error("El asistente no devolvió una respuesta.");
+      throw new Error(
+        "El asistente no devolvió una respuesta."
+      );
     }
 
     status.textContent = datos.answer;
+
     hablar(datos.answer);
 
   } catch (error) {
@@ -428,7 +510,7 @@ async function conversar() {
   }
 }
 
-/* PERMITIR ENVIAR LA PREGUNTA CON ENTER */
+/* ENVIAR PREGUNTA CON ENTER */
 
 campoPregunta.addEventListener("keydown", function(evento) {
   if (evento.key === "Enter") {
@@ -436,16 +518,20 @@ campoPregunta.addEventListener("keydown", function(evento) {
   }
 });
 
-/* PARPADEO DEL ROBOT */
+/* PARPADEO AUTOMÁTICO */
 
 setInterval(function() {
+
   if (!robot.classList.contains("speaking")) {
+
     robot.classList.add("blink");
 
     setTimeout(function() {
       robot.classList.remove("blink");
     }, 200);
+
   }
+
 }, 3500);
 
 </script>
