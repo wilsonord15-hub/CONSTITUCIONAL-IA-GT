@@ -38,168 +38,129 @@ main {
   padding: 15px;
 }
 
+/* PERSONAJE ROBOTICO CON FONDO TRANSPARENTE */
+
 .robot {
   position: relative;
   width: min(100%, 625px);
-  margin: auto;
-  overflow: hidden;
-  border-radius: 22px;
-  border: 2px solid #13bfff;
-  box-shadow: 0 0 25px #008cff66;
+  margin: 12px auto 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    rgba(0, 145, 255, .22) 0%,
+    rgba(0, 55, 110, .12) 48%,
+    transparent 75%
+  );
+  box-shadow: none;
 }
 
-.robot img {
+/* La imagen conserva su transparencia */
+.robot-image {
   display: block;
   width: 100%;
   height: auto;
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 0 12px rgba(0, 174, 255, .28));
 }
 
-/* =================================
-   MOVIMIENTO FACIAL
-================================= */
+/* RESPIRACION Y MOVIMIENTO SUAVE DEL CUERPO */
+.robot.breathing .robot-image {
+  animation: breathing 4.2s ease-in-out infinite;
+}
 
-/* BOCA ANIMADA */
+@keyframes breathing {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.006);
+  }
+}
 
+/* MOVIMIENTO DE BOCA: UBICACION AJUSTADA A LA NUEVA IMAGEN */
 .mouth {
   position: absolute;
-  left: 29.6%;
-  top: 36.4%;
-  width: 7.5%;
-  height: 3.4%;
-
+  left: 42.5%;
+  top: 35.6%;
+  width: 14%;
+  height: 3.2%;
   background: radial-gradient(
     ellipse at center,
     #16090d 0%,
     #321016 65%,
     #5b2028 100%
   );
-
-  border: 1px solid #6d333b;
+  border: 1px solid rgba(109, 51, 59, .8);
   border-radius: 45% 45% 50% 50%;
-
   transform: scaleY(.08);
   transform-origin: center;
-
   opacity: 0;
   overflow: hidden;
-
-  box-shadow:
-    0 0 5px #16090d,
-    inset 0 1px 4px #000;
+  box-shadow: 0 0 5px #16090d, inset 0 1px 4px #000;
+  pointer-events: none;
 }
-
-/* DIENTES */
 
 .mouth::after {
   content: "";
   position: absolute;
-
   top: 9%;
   left: 17%;
   width: 66%;
   height: 28%;
-
-  background: linear-gradient(
-    to bottom,
-    #ffffff,
-    #d7e5ed
-  );
-
+  background: linear-gradient(to bottom, #fff, #d7e5ed);
   border-radius: 0 0 45% 45%;
   opacity: .95;
 }
 
-/* MOVIMIENTO AL HABLAR */
-
 .speaking .mouth {
-  opacity: 1;
+  opacity: .95;
   animation: talk .24s infinite alternate ease-in-out;
 }
 
 @keyframes talk {
-
-  0% {
-    transform: scaleY(.12);
-    border-radius: 50%;
-  }
-
-  20% {
-    transform: scaleY(.38);
-    border-radius: 45%;
-  }
-
-  40% {
-    transform: scaleY(.85);
-    border-radius: 40%;
-  }
-
-  60% {
-    transform: scaleY(1.05);
-    border-radius: 35%;
-  }
-
-  80% {
-    transform: scaleY(.48);
-    border-radius: 45%;
-  }
-
-  100% {
-    transform: scaleY(.72);
-    border-radius: 40%;
-  }
+  0%   { transform: scaleY(.08); border-radius: 50%; }
+  20%  { transform: scaleY(.30); border-radius: 45%; }
+  40%  { transform: scaleY(.72); border-radius: 40%; }
+  60%  { transform: scaleY(1); border-radius: 35%; }
+  80%  { transform: scaleY(.42); border-radius: 45%; }
+  100% { transform: scaleY(.65); border-radius: 40%; }
 }
 
-/* OJOS */
-
+/* PARPADEO SUTIL SOBRE LA ZONA DE LOS OJOS */
 .eye {
   position: absolute;
-  top: 22.5%;
-  height: 3%;
-  width: 7%;
-
+  top: 22.8%;
+  height: 4.2%;
+  width: 12.5%;
   background: linear-gradient(
     to bottom,
-    #a66e61,
-    #e0b39c
+    rgba(190, 135, 119, .96),
+    rgba(225, 174, 151, .98)
   );
-
-  border-radius: 50% 50% 45% 45%;
+  border-radius: 48% 48% 45% 45%;
   transform: scaleY(0);
-  transform-origin: top;
-  opacity: .95;
+  transform-origin: center;
+  opacity: .92;
+  pointer-events: none;
 }
 
-.eye.left {
-  left: 27%;
-}
-
-.eye.right {
-  left: 34.7%;
-}
-
-/* PARPADEO */
+.eye.left { left: 36.5%; }
+.eye.right { left: 51%; }
 
 .blink .eye {
   animation: blink .16s ease-in-out;
 }
 
 @keyframes blink {
-
-  0%, 100% {
-    transform: scaleY(0);
-  }
-
-  50% {
-    transform: scaleY(1);
-  }
+  0%, 100% { transform: scaleY(0); }
+  50% { transform: scaleY(1); }
 }
 
-/* ILUMINACIÓN AL HABLAR */
-
+/* BRILLO AZUL AL HABLAR */
 .robot.speaking {
-  box-shadow:
-    0 0 25px #008cff66,
-    0 0 12px #00baff55;
+  filter: drop-shadow(0 0 10px rgba(0, 174, 255, .24));
 }
 
 /* CONTROLES */
@@ -279,11 +240,12 @@ input {
 
 <main>
 
-  <div class="robot" id="robot">
+  <div class="robot breathing" id="robot">
 
     <img
-      src="Retrato%20futurista%20del%20Dr.%20Constitucional%20IA.png"
+      src="Retrato%20del%20doctor%20constitucional%20futurista.png"
       alt="DR CONSTITUCIONAL IA"
+      class="robot-image"
     >
 
     <div class="eye left"></div>
