@@ -161,9 +161,41 @@ function repetir(){
  escucha.start();
 }
 
-function conversar(){
- status.textContent="Modo conversación seleccionado.";
- hablar("Bienvenido. Soy DR Constitucional IA. Estoy preparado para conversar sobre Derecho Constitucional. La conexión de inteligencia artificial se habilitará en la siguiente etapa.");
+async function conversar(){
+  const pregunta = document.getElementById("pregunta").value.trim();
+
+  if(!pregunta){
+    status.textContent = "Escribe una pregunta para comenzar.";
+    return;
+  }
+
+  status.textContent = "DR CONSTITUCIONAL IA está analizando tu consulta...";
+
+  try {
+    const respuesta = await fetch(
+      "https://dr-constitucional-ia.wilsonord15.workers.dev/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ question: pregunta })
+      }
+    );
+
+    const datos = await respuesta.json();
+
+    if(!respuesta.ok){
+      throw new Error(datos.error || "No se pudo obtener respuesta.");
+    }
+
+    status.textContent = datos.answer;
+    hablar(datos.answer);
+
+  } catch(error) {
+    status.textContent = "No fue posible conectar con el asistente. Verifica la conexión.";
+    console.error(error);
+  }
 }
 
 setInterval(()=>{
