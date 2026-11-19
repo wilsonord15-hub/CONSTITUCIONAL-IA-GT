@@ -107,7 +107,18 @@ Prototipo inicial. La conexión con OpenAI se incorporará en la siguiente etapa
 const robot=document.getElementById("robot");
 const status=document.getElementById("status");
 
-function hablar(texto){
+function limpiarTextoParaVoz(texto){
+  return texto
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/#+\s*/g, "")
+    .replace(/^\s*\d+[.)]\s+/gm, "")
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/[*_~`>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
  if(!("speechSynthesis" in window)){
   status.textContent="Tu navegador no admite voz.";
   return;
@@ -190,7 +201,7 @@ async function conversar(){
     }
 
     status.textContent = datos.answer;
-    hablar(datos.answer);
+   hablar(limpiarTextoParaVoz(datos.answer));
 
   } catch(error) {
     status.textContent = "No fue posible conectar con el asistente. Verifica la conexión.";
