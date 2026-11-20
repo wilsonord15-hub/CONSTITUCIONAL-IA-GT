@@ -13,6 +13,7 @@ const send = composer.querySelector('[type="submit"]');
 
 const storageKey = 'dr-constitucional.history.v1';
 const phoneKey = 'dr-constitucional.phone.v1';
+const voiceKey = 'dr-constitucional.voice.v1';
 const greeting = '¡Hola! Soy el Dr. Constitucional IA. Contame qué tema jurídico querés consultar.';
 let history = [];
 try {
@@ -31,6 +32,12 @@ let speechRequest;
 let recorder;
 let processingDictation = false;
 let sharedText = '';
+let configRequest;
+let voicePreference = {};
+
+try {
+  voicePreference = JSON.parse(localStorage.getItem(voiceKey) || '{}') || {};
+} catch {}
 
 async function api(path, options) {
   const response = await fetch('/api/' + path, options);
@@ -49,6 +56,16 @@ function post(path, body, signal) {
     signal
   });
 }
+
+function getConfig() {
+  configRequest ??= api('config').then(response => response.json()).catch(error => {
+    configRequest = undefined;
+    throw error;
+  });
+  return configRequest;
+}
+
+const keyRequired = 'Agregá tu clave de OpenAI en Configuración.';
 
 function persist() {
   try {
@@ -182,7 +199,9 @@ async function speak(text) {
   stopButton.hidden = false;
   try {
     const response = await post('speech', {
-      text: text.replace(/\[\d+\]/g, '').slice(0, 4096)
+      text: text.replace(/\[\d+\]/g, '').slice(0, 4096),
+      voice: voicePreference.voice,
+      accent: voicePreference.accent
     }, controller.signal);
     const decoded = await audioContext.decodeAudioData(await response.arrayBuffer());
     if (controller.signal.aborted) return;
@@ -220,11 +239,11 @@ byId('start').addEventListener('click', async () => {
   appendTurn({ role: 'assistant', text: greeting, greeting: true });
   input.focus();
   try {
-    const config = await (await api('config')).json();
+    const config = await getConfig();
     if (config.configured && chat === startedChat && chat.turns.length === 1 && !busy && !recorder && !processingDictation) {
       void speak(greeting);
     }
-    if (!config.configured) status.textContent = 'Agregá tu clave de OpenAI en Configuración para conversar y usar la voz.';
+    if (!config.configured) status.textContent = keyRequired;
   } catch (error) {
     status.textContent = error.message;
   }
@@ -297,8 +316,8 @@ dictate.addEventListener('click', async () => {
   send.disabled = true;
   let stream;
   try {
-    const config = await (await api('config')).json();
-    if (!config.configured) throw new Error('Guardá tu clave de OpenAI antes de dictar.');
+    const config = await getConfig();
+    if (!config.configured) throw new Error(keyRequired);
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       throw new Error('El micrófono requiere un navegador compatible y un origen local seguro.');
     }
@@ -308,7 +327,7 @@ dictate.addEventListener('click', async () => {
     const format = formats.find(([, type]) => MediaRecorder.isTypeSupported(type));
     if (!format) throw new Error('El navegador no admite los formatos de grabación disponibles.');
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(stream, { mimeType: format[1] });
+    recorder = new MediaRecorder(stream, { mimeType: format[1], audioBitsPerSecond: 96_000 });
     const chunks = [];
     recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
     recorder.onstop = async () => {
@@ -318,9 +337,13 @@ dictate.addEventListener('click', async () => {
       dictate.textContent = 'Dictar';
       status.textContent = 'Transcribiendo…';
       try {
+        const audio = new Blob(chunks, { type: format[1] });
+        if (audio.size > config.audioLimit) {
+          throw new Error('La grabación supera el límite de carga. Probá con un dictado más corto.');
+        }
         const result = await api('transcribe?format=' + format[0], {
           method: 'POST',
-          body: new Blob(chunks, { type: format[1] })
+          body: audio
         });
         const { text } = await result.json();
         const transcript = (text || '').trim();
@@ -360,11 +383,17 @@ const saveConfig = settingsForm.querySelector('[type="submit"]');
 
 function showConfig(config) {
   byId('api-key').value = '';
-  byId('key-note').textContent = config.configured
-    ? 'Ya hay una clave guardada. Dejá el campo vacío para conservarla.'
-    : 'La clave se guarda en el servidor local.';
-  byId('voice').value = config.voice;
-  byId('accent').value = config.accent;
+  byId('key-note').textContent = config.hosted
+    ? (config.configured ? 'Ya hay una clave cifrada para este navegador. Dejá el campo vacío para conservarla.'
+      : 'La app guarda la clave cifrada para este navegador.')
+    : (config.configured ? 'Ya hay una clave guardada. Dejá el campo vacío para conservarla.'
+      : 'La clave se guarda en el servidor local.');
+  for (const field of ['voice', 'accent']) {
+    const select = byId(field);
+    const preference = config.hosted && voicePreference[field];
+    select.value = Array.from(select.options).some(option => option.value === preference)
+      ? preference : config[field];
+  }
 }
 
 byId('open-settings').addEventListener('click', async () => {
@@ -372,7 +401,7 @@ byId('open-settings').addEventListener('click', async () => {
   configStatus.textContent = '';
   saveConfig.disabled = true;
   try {
-    showConfig(await (await api('config')).json());
+    showConfig(await getConfig());
     saveConfig.disabled = false;
   } catch (error) {
     configStatus.textContent = error.message;
@@ -384,12 +413,16 @@ settingsForm.addEventListener('submit', async event => {
   configStatus.textContent = 'Guardando…';
   saveConfig.disabled = true;
   try {
-    const response = await post('config', {
-      key: byId('api-key').value.trim(),
-      voice: byId('voice').value,
-      accent: byId('accent').value
-    });
-    showConfig(await response.json());
+    const config = await getConfig();
+    const preferences = { voice: byId('voice').value, accent: byId('accent').value };
+    const response = await post('config', { ...preferences, key: byId('api-key').value.trim() });
+    const updated = await response.json();
+    configRequest = Promise.resolve(updated);
+    if (config.hosted) {
+      voicePreference = preferences;
+      try { localStorage.setItem(voiceKey, JSON.stringify(preferences)); } catch {}
+    }
+    showConfig(updated);
     configStatus.textContent = 'Configuración guardada.';
     status.textContent = '';
   } catch (error) {
@@ -401,11 +434,20 @@ settingsForm.addEventListener('submit', async event => {
 
 const libraryStatus = byId('library-status');
 const refreshButton = byId('refresh-library');
+const uploadForm = byId('upload-form');
 
 async function refreshLibrary() {
   refreshButton.disabled = true;
   libraryStatus.textContent = 'Cargando biblioteca…';
   try {
+    const config = await getConfig();
+    uploadForm.hidden = !config.libraryConfigured;
+    if (!config.libraryConfigured) {
+      libraryStatus.textContent = 'La biblioteca todavía necesita un índice configurado en Vercel.';
+      return;
+    }
+    byId('document-note').textContent = 'PDF, DOCX, TXT o Markdown de hasta '
+      + config.documentLimit / (1024 * 1024) + ' MB. El archivo se enviará a OpenAI para indexarlo.';
     const files = await (await api('documents')).json();
     const labels = { completed: 'Indexado', in_progress: 'Indexando', failed: 'Error de indexación', cancelled: 'Cancelado' };
     byId('documents').replaceChildren(...files.map(file => {
@@ -427,20 +469,20 @@ byId('open-library').addEventListener('click', () => {
 });
 refreshButton.addEventListener('click', refreshLibrary);
 
-byId('upload-form').addEventListener('submit', async event => {
+uploadForm.addEventListener('submit', async event => {
   event.preventDefault();
   const submit = event.submitter;
   const selector = byId('document');
   const [file] = selector.files;
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) {
-    libraryStatus.textContent = 'Elegí un archivo de hasta 20 MB.';
-    return;
-  }
   submit.disabled = true;
   refreshButton.disabled = true;
   libraryStatus.textContent = 'Enviando documento para indexar…';
   try {
+    const { documentLimit } = await getConfig();
+    if (file.size > documentLimit) {
+      throw new Error('Elegí un archivo de hasta ' + documentLimit / (1024 * 1024) + ' MB.');
+    }
     await api('documents?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
     selector.value = '';
     await refreshLibrary();

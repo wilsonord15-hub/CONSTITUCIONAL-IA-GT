@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "outputDirectory": "public",
+  "functions": {
+    "api/app.js": {
+      "maxDuration": 180,
+      "includeFiles": "{index.html,app.js,avatar.js,style.css,Retrato del doctor constitucional futurista.png}"
+    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/api/app?__route=/" },
+    { "source": "/index.html", "destination": "/api/app?__route=/index.html" },
+    { "source": "/app.js", "destination": "/api/app?__route=/app.js" },
+    { "source": "/avatar.js", "destination": "/api/app?__route=/avatar.js" },
+    { "source": "/style.css", "destination": "/api/app?__route=/style.css" },
+    { "source": "/retrato.png", "destination": "/api/app?__route=/retrato.png" },
+    { "source": "/api/:action(config|chat|documents|transcribe|speech)", "destination": "/api/app?__route=/api/:action" }
+  ]
+}
