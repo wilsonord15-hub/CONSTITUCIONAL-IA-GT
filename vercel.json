@@ -5,7 +5,7 @@
   "functions": {
     "api/app.js": {
       "maxDuration": 180,
-      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/retrato-guatemala.png,assets/logo-constitucional.png,assets/favicon.ico,assets/icono-constitucional-32.png,assets/apple-touch-icon.png}"
+      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/retrato-guatemala.png,assets/logo-constitucional.png,assets/nombre-constitucional.png,assets/favicon.ico,assets/icono-constitucional-32.png,assets/apple-touch-icon.png}"
     }
   },
   "rewrites": [
@@ -17,6 +17,7 @@
     { "source": "/style.css", "destination": "/api/app?__route=/style.css" },
     { "source": "/retrato.png", "destination": "/api/app?__route=/retrato.png" },
     { "source": "/logo-constitucional.png", "destination": "/api/app?__route=/logo-constitucional.png" },
+    { "source": "/nombre-constitucional.png", "destination": "/api/app?__route=/nombre-constitucional.png" },
     { "source": "/favicon.ico", "destination": "/api/app?__route=/favicon.ico" },
     { "source": "/icono-constitucional-32.png", "destination": "/api/app?__route=/icono-constitucional-32.png" },
     { "source": "/apple-touch-icon.png", "destination": "/api/app?__route=/apple-touch-icon.png" },

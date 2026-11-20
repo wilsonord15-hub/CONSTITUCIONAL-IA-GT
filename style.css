@@ -85,24 +85,43 @@ button:disabled { opacity: .45; cursor: default; }
 .top {
   width: min(calc(100% - 3rem), 1376px);
   margin: auto;
-  min-height: 83px;
+  min-height: 96px;
   border-bottom: 1px solid #b4bed825;
 }
 .top nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
-.brand { display: flex; align-items: center; gap: .7rem; font-size: 1.05rem; font-weight: 700; letter-spacing: -.025em; }
+.brand { display: flex; align-items: center; min-width: 0; gap: .9rem; }
+.brand-wordmark {
+  display: block;
+  width: clamp(12rem, 25vw, 20rem);
+  max-width: calc(100vw - 7rem);
+  height: auto;
+  filter: drop-shadow(0 2px 8px #79caff35);
+}
 .seal {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
-  width: 2.7rem;
+  width: clamp(3.65rem, 5vw, 4.35rem);
+  flex-shrink: 0;
   aspect-ratio: 1;
   place-items: center;
-  background: #d2d9ef11;
-  border: 1px solid #cad1eb55;
-  border-radius: 12px;
-  font-size: 1.25rem;
-  color: #e0e5f6;
-  box-shadow: var(--inset), 0 0 18px #d8dfff22;
+  border: 1px solid #84c7ff65;
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 32% 0%, #32659a77, transparent 72%), #0b1c36;
+  box-shadow: var(--inset), 0 0 24px #67a7ef31;
 }
-.seal img, .hero-seal img { display: block; width: 100%; height: auto; border-radius: inherit; }
+.seal::before {
+  content: "";
+  position: absolute;
+  inset: -48%;
+  z-index: -1;
+  background: conic-gradient(from 0deg, transparent 14%, #96dbff3d 22%, transparent 32%, transparent 66%, #688bff48 78%, transparent 87%);
+  animation: seal-refraction 13s linear infinite;
+  pointer-events: none;
+}
+@keyframes seal-refraction { to { transform: rotate(360deg); } }
+.seal img, .hero-seal img { display: block; width: 100%; height: auto; }
 .workspace {
   width: min(calc(100% - 3rem), 1376px);
   margin: clamp(1.2rem, 3vw, 2.75rem) auto;
@@ -323,8 +342,9 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
 @media (max-width: 620px) {
   .top, .workspace { width: calc(100% - 1.4rem); }
   .top { min-height: 66px; flex-wrap: wrap; padding: .55rem 0; }
-  .brand { font-size: .88rem; gap: .4rem; }
-  .seal { width: 2.15rem; }
+  .brand { gap: .62rem; }
+  .brand-wordmark { width: clamp(11rem, 48vw, 15rem); }
+  .seal { width: 3.3rem; border-radius: 15px; }
   .workspace { display: flex; flex-direction: column; }
   .workspace > * { width: 100%; }
   .profile { order: -2; display: flex; align-items: center; padding: 0; }

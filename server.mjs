@@ -30,6 +30,7 @@ const assets = new Map([
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
   ['/retrato.png', ['assets/retrato-guatemala.png', 'image/png']],
   ['/logo-constitucional.png', ['assets/logo-constitucional.png', 'image/png']],
+  ['/nombre-constitucional.png', ['assets/nombre-constitucional.png', 'image/png']],
   ['/favicon.ico', ['assets/favicon.ico', 'image/x-icon']],
   ['/icono-constitucional-32.png', ['assets/icono-constitucional-32.png', 'image/png']],
   ['/apple-touch-icon.png', ['assets/apple-touch-icon.png', 'image/png']]
