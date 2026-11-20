@@ -8,6 +8,9 @@ con `pnpm dev` desde su carpeta y abre
 [http://localhost:3001/](http://localhost:3001/). El puerto 3001 debe estar libre.
 La página usa una API local para las consultas, por lo que debe abrirse desde esa URL.
 
+Si cambias las clases de Tailwind o su hoja fuente, ejecuta `npm run css:build`
+para actualizar `public/tailwind.css`.
+
 1. Abre **Configuración**, guarda una clave de tu proyecto de OpenAI y elige la voz y el acento.
 2. Abre **Biblioteca**, elige o arrastra uno o varios archivos PDF, DOCX, TXT o Markdown y pulsa **Subir archivos**. Espera a que cada documento indique **Listo para consultar**.
 3. Pulsa **Conversar**. Puedes escribir o usar **Dictar** para grabar, revisar la transcripción y enviarla.

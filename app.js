@@ -238,6 +238,7 @@ function buildMessage(turn) {
   if (!turn.greeting) {
     const topic = turn.role === 'user' ? 'pregunta' : 'respuesta';
     const actions = document.createElement('footer');
+    actions.className = 'flex flex-wrap gap-2 compact:action-pair';
     const copy = button('Copiar', async () => {
       try {
         await navigator.clipboard.writeText(actionText(turn));

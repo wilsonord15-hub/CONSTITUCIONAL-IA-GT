@@ -29,6 +29,7 @@ const assets = new Map([
   ['/avatar.js', ['avatar.js', 'text/javascript; charset=utf-8']],
   ['/lipsync.js', ['lipsync.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+  ['/tailwind.css', ['public/tailwind.css', 'text/css; charset=utf-8']],
   ['/retrato.png', ['assets/retrato-guatemala.png', 'image/png']],
   ['/logo-constitucional.png', ['assets/logo-constitucional.png', 'image/png']],
   ['/nombre-constitucional.png', ['assets/nombre-constitucional.png', 'image/png']],

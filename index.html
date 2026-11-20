@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/icono-constitucional-32.png?v=prisma">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=prisma">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/tailwind.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -74,7 +75,7 @@
           </div>
           <p class="profile-disclosure muted"><span class="icon" aria-hidden="true">◎</span> Tu perfil se guarda en este navegador y acompaña tus consultas a OpenAI. Evitá incluir datos sensibles.</p>
           <p id="profile-status" role="status"></p>
-          <div class="profile-actions">
+          <div class="profile-actions flex flex-wrap justify-between gap-3 compact:action-pair">
             <button type="button" id="skip-profile">Omitir por ahora</button>
             <button type="button" id="cancel-profile" hidden>Cancelar</button>
             <button class="primary" type="submit"><span class="icon" aria-hidden="true">✓</span> Guardar perfil</button>
@@ -103,7 +104,7 @@
             </div>
           </div>
         </details>
-        <div class="composer-actions">
+        <div class="composer-actions flex items-center justify-between gap-3 compact:action-pair">
           <button type="button" id="dictate"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
           <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
         </div>
@@ -120,7 +121,7 @@
   </main>
   <dialog id="settings" aria-labelledby="settings-heading">
     <div class="dialog-title"><h2 id="settings-heading"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
-    <div id="settings-nav" class="settings-nav" aria-label="Secciones de configuración" hidden>
+    <div id="settings-nav" class="settings-nav action-pair gap-3 compact:gap-2" aria-label="Secciones de configuración" hidden>
       <button type="button" id="open-preferences" aria-pressed="true"><span class="icon" aria-hidden="true">⚿</span> Preferencias</button>
       <button type="button" id="open-library" aria-pressed="false"><span class="icon" aria-hidden="true">§</span> Biblioteca jurídica</button>
     </div>

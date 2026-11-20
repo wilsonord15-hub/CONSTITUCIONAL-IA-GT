@@ -1,0 +1,27 @@
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+@source "../index.html";
+@source "../app.js";
+
+@theme {
+  --color-selected-border: #a5ccff9c;
+  --color-selected-top: #2b4f7b;
+  --color-selected-bottom: #1a3357;
+  --color-selected-text: #f3f8ff;
+}
+
+@custom-variant compact (@media (max-width: 700px));
+
+@utility action-pair {
+  @apply grid grid-cols-2 items-stretch gap-2;
+}
+
+.settings-nav button[aria-pressed="true"] {
+  @apply border-selected-border bg-linear-to-b from-selected-top to-selected-bottom text-selected-text;
+}
+
+.settings-nav button .icon {
+  @apply me-0.5;
+}

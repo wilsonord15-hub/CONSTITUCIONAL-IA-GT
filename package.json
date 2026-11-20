@@ -6,7 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node server.mjs"
+    "dev": "node server.mjs",
+    "css:build": "tailwindcss -i ./styles/tailwind.css -o ./public/tailwind.css --minify"
   },
   "dependencies": {
     "@breezystack/lamejs": "1.2.7",
@@ -14,5 +15,9 @@
     "mammoth": "1.13.0",
     "unpdf": "1.4.0",
     "ws": "8.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5"
   }
 }
