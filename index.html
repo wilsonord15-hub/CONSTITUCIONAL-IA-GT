@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/tailwind.css">
   <script type="module" src="/app.js"></script>
+  <script type="module" src="/footer-shader.js"></script>
 </head>
 <body>
   <div class="nebula" aria-hidden="true"></div>
@@ -135,6 +136,13 @@
       <button id="stop-audio" hidden><span class="icon" aria-hidden="true">■</span> Detener voz</button>
     </aside>
   </main>
+  <footer class="site-footer">
+    <canvas class="footer-wave" aria-hidden="true"></canvas>
+    <div class="footer-content">
+      <p>Dr. Constitucional IA</p>
+      <a class="footer-glass-link" href="#chat-title"><span aria-hidden="true">↑</span> Volver a la consulta</a>
+    </div>
+  </footer>
   <dialog id="settings" aria-labelledby="settings-heading">
     <div class="dialog-title"><h2 id="settings-heading"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
     <div id="settings-nav" class="settings-nav action-pair gap-3 compact:gap-2" aria-label="Secciones de configuración" hidden>

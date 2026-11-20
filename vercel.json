@@ -6,7 +6,7 @@
   "functions": {
     "api/app.js": {
       "maxDuration": 180,
-      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/retrato-guatemala.png,assets/logo-constitucional.png,assets/nombre-constitucional.png,assets/favicon.ico,assets/icono-constitucional-32.png,assets/apple-touch-icon.png}"
+      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/retrato-guatemala.png,assets/logo-constitucional.png,assets/nombre-constitucional.png,assets/favicon.ico,assets/icono-constitucional-32.png,assets/apple-touch-icon.png,node_modules/three/build/three.module.js,node_modules/three/build/three.core.js}"
     }
   },
   "rewrites": [
@@ -15,6 +15,8 @@
     { "source": "/app.js", "destination": "/api/app?__route=/app.js" },
     { "source": "/avatar.js", "destination": "/api/app?__route=/avatar.js" },
     { "source": "/lipsync.js", "destination": "/api/app?__route=/lipsync.js" },
+    { "source": "/three.module.js", "destination": "/api/app?__route=/three.module.js" },
+    { "source": "/three.core.js", "destination": "/api/app?__route=/three.core.js" },
     { "source": "/style.css", "destination": "/api/app?__route=/style.css" },
     { "source": "/retrato.png", "destination": "/api/app?__route=/retrato.png" },
     { "source": "/logo-constitucional.png", "destination": "/api/app?__route=/logo-constitucional.png" },

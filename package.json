@@ -13,6 +13,7 @@
     "@breezystack/lamejs": "1.2.7",
     "@vercel/blob": "2.4.0",
     "mammoth": "1.13.0",
+    "three": "^0.187.0",
     "unpdf": "1.4.0",
     "ws": "8.23.0"
   },

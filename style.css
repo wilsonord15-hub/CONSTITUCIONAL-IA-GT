@@ -130,6 +130,75 @@ button:disabled { opacity: .45; cursor: default; }
   align-items: start;
   gap: clamp(.8rem, 1.7vw, 1.45rem);
 }
+.site-footer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  align-content: center;
+  width: min(calc(100% - 3rem), 1376px);
+  min-height: clamp(8rem, 13vw, 10.5rem);
+  margin: 0 auto 1.5rem;
+  border: 1px solid #a3ccff48;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 110% 125% at 64% 161%, transparent 73%, #3778c433 76%, #86c9fe66 78%, #214e9d4d 79%, transparent 82%),
+    radial-gradient(ellipse at 66% 118%, #3b68aa92, transparent 58%),
+    radial-gradient(ellipse at 27% 80%, #2f76a366, transparent 53%),
+    #081528;
+  box-shadow: var(--inset), 0 16px 45px #03091986;
+}
+.footer-wave {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+.footer-wave[data-rendered] { opacity: 1; }
+.footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem 1.4rem;
+  padding: 1.25rem clamp(1.25rem, 4vw, 3.5rem);
+}
+.footer-content p {
+  margin: 0;
+  color: #f1f7ff;
+  font: 400 clamp(1.2rem, 2.4vw, 1.9rem)/1.2 Georgia, "Times New Roman", serif;
+  text-shadow: 0 2px 12px #060e21;
+}
+.footer-glass-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .48rem;
+  min-height: 44px;
+  padding: .55rem 1rem;
+  border: 1px solid #c2e2ff8c;
+  border-radius: 100px;
+  background: linear-gradient(172deg, #293f5ccf, #0b1834d9 67%, #264369d1);
+  box-shadow: inset 0 1px 0 #e9f6ff69, inset 0 -1px 0 #90cafa44, 0 5px 16px #050b20a8;
+  backdrop-filter: blur(9px) saturate(1.28);
+  color: #f4f9ff;
+  font-size: .87rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.footer-glass-link:hover {
+  border-color: #eff8ff;
+  box-shadow: inset 0 1px 0 #ecf8ffc7, 0 0 20px #8bbdff66;
+}
+.footer-glass-link span { color: #c4e4ff; }
+@media (max-width: 560px) {
+  .site-footer { width: calc(100% - 1.5rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .footer-wave { display: none; }
+}
 .history, .conversation, .profile, dialog {
   border: 1px solid transparent;
   border-radius: 20px;
