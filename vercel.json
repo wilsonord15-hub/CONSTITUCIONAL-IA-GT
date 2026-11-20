@@ -6,7 +6,7 @@
   "functions": {
     "api/app.js": {
       "maxDuration": 180,
-      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/retrato-guatemala.png,assets/logo-constitucional.png,assets/nombre-constitucional.png,assets/favicon.ico,assets/icono-constitucional-32.png,assets/apple-touch-icon.png,node_modules/three/build/three.module.js,node_modules/three/build/three.core.js}"
+      "includeFiles": "{index.html,app.js,avatar.js,lipsync.js,style.css,assets/*,node_modules/three/build/three.module.js,node_modules/three/build/three.core.js}"
     }
   },
   "rewrites": [
