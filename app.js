@@ -1631,7 +1631,8 @@ async function refreshLibrary({ quiet = false } = {}) {
   try {
     const config = await getConfig();
     uploadForm.hidden = !config.libraryConfigured || !config.configured;
-    if (uploadForm.hidden) {
+    // Supabase listings use the administrator session, while indexing needs OpenAI.
+    if (!config.libraryConfigured || (!config.configured && !config.directDocumentUpload)) {
       renderDocuments([]);
       libraryStatus.textContent = !config.configured
         ? 'Guarda la clave de OpenAI en Preferencias para abrir la biblioteca.'
@@ -1652,9 +1653,11 @@ async function refreshLibrary({ quiet = false } = {}) {
     const pendingMessage = indexing ? (Date.now() < indexDeadline
       ? 'Los archivos en preparación se actualizan automáticamente.'
       : 'Hay archivos en preparación. Pulsa Actualizar para comprobar su estado.') : '';
-    const message = visibleFiles.length
+    const catalogMessage = visibleFiles.length
       ? [readyMessage, pendingMessage].filter(Boolean).join(' ') || 'Aún no hay documentos listos para consultar.'
-      : 'Agrega tu primer documento para que el Dr. pueda usarlo en sus respuestas.';
+      : 'La biblioteca todavía no tiene documentos.';
+    const keyMessage = config.configured ? '' : 'Guarda tu clave de OpenAI en Preferencias para subir documentos y hacer consultas.';
+    const message = [catalogMessage, keyMessage].filter(Boolean).join(' ');
     if (libraryStatus.textContent !== message) libraryStatus.textContent = message;
   } catch (error) {
     libraryStatus.textContent = error.message;
