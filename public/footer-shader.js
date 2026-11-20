@@ -1,6 +1,5 @@
 const canvas = document.querySelector('.footer-wave');
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
-let inView = false;
 let setActive;
 let loading = false;
 
@@ -60,7 +59,7 @@ async function createWave() {
   let active = false;
   let contextLost = false;
   let needsResize = true;
-  new ResizeObserver(() => { needsResize = true; }).observe(canvas.parentElement);
+  new ResizeObserver(() => { needsResize = true; }).observe(canvas);
 
   function draw(timestamp) {
     if (needsResize) {
@@ -105,7 +104,7 @@ async function createWave() {
 }
 
 function update() {
-  const playing = inView && !motion.matches && !document.hidden;
+  const playing = !motion.matches && !document.hidden;
   if (setActive) {
     setActive(playing);
   } else if (playing && !loading) {
@@ -120,11 +119,7 @@ function update() {
 }
 
 if (canvas) {
-  const observer = new IntersectionObserver(([entry]) => {
-    inView = entry.isIntersecting;
-    update();
-  });
-  observer.observe(canvas.parentElement);
   motion.addEventListener('change', update);
   document.addEventListener('visibilitychange', update);
+  update();
 }
