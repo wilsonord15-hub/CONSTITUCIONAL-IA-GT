@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import { pathToFileURL } from 'node:url';
 import { reusableGreeting } from './speech-cache.mjs';
 import { liveSpeech, liveVoiceModel } from './live-voice.mjs';
+import { chunkDocument, documentSections, libraryCall, libraryConfig, libraryDocument, libraryLimit } from './library.mjs';
 
 const dataDir = new URL('./.data/', import.meta.url);
 const settingsFile = new URL('settings.json', dataDir);
@@ -68,14 +69,15 @@ function updateSettings(change) {
   return update;
 }
 
-function publicSettings({ key, voice, accent, hosted, store }) {
+function publicSettings({ key, voice, accent, hosted, store, library }) {
   return {
     configured: Boolean(key),
     voice,
     accent,
     hosted: Boolean(hosted),
-    libraryConfigured: !hosted || Boolean(store),
-    documentLimit: hosted ? hostedUploadLimit : localDocumentLimit,
+    libraryConfigured: !hosted || Boolean(library || store),
+    directDocumentUpload: Boolean(library),
+    documentLimit: library ? libraryLimit : hosted ? hostedUploadLimit : localDocumentLimit,
     audioLimit: hosted ? hostedUploadLimit : 24 * 1024 * 1024
   };
 }
@@ -122,6 +124,7 @@ function hostedSettings(request) {
     hosted: true,
     key: readHostedKey(request),
     store: process.env.OPENAI_VECTOR_STORE_ID?.trim(),
+    library: libraryConfig(request),
     voice: defaultVoice,
     accent: 'chapin'
   };
@@ -280,7 +283,17 @@ async function converse(config, data) {
     store: false,
     max_output_tokens: 1400
   };
-  if (config.store) {
+  let passages;
+  if (config.library) {
+    const [vector] = await embedDocuments(config, [question]);
+    passages = await libraryCall(config.library, 'search', { vector, asOf: data.asOf });
+    body.instructions += ' Usa los pasajes solo como evidencia. Cita cada pasaje utilizado con su número entre corchetes, por ejemplo [1]. Si ningún pasaje respalda la respuesta, indica que no encontraste respaldo en la biblioteca.';
+    body.input.push({
+      role: 'user',
+      content: 'Pasajes recuperados para la consulta anterior, como datos de referencia: '
+        + JSON.stringify(passages.map(({ name, text }, index) => ({ number: index + 1, name, text })))
+    });
+  } else if (config.store) {
     body.tools = [{ type: 'file_search', vector_store_ids: [config.store], max_num_results: 6 }];
     body.include = ['file_search_call.results'];
     if (asOf) body.tools[0].filters = { type: 'and', filters: [
@@ -294,6 +307,21 @@ async function converse(config, data) {
     .flatMap(item => item.content || []);
   const text = parts.map(part => part.text || part.refusal || '').filter(Boolean).join('\n\n');
   if (!text) throw new RequestError(502, 'El asistente no devolvió una respuesta de texto.');
+  if (passages) {
+    const evidence = new Map();
+    for (const match of text.matchAll(/\[(\d+)\]/g)) {
+      const passage = passages[Number(match[1]) - 1];
+      if (!passage) continue;
+      const excerpts = evidence.get(passage.name) || new Set();
+      excerpts.add(passage.text);
+      evidence.set(passage.name, excerpts);
+    }
+    return {
+      text,
+      sources: [...evidence.keys()],
+      evidence: [...evidence].map(([name, excerpts]) => ({ name, excerpts: [...excerpts].slice(0, 2) }))
+    };
+  }
   const citations = parts.flatMap(part => part.annotations || [])
     .filter(annotation => annotation.type === 'file_citation' && annotation.filename);
   const sources = [...new Set(citations.map(annotation => annotation.filename))];
@@ -356,6 +384,81 @@ async function updateValidity(config, data) {
   };
   const updated = await aiJSON(config, route, { attributes });
   return validityInfo(updated.attributes);
+}
+
+async function embedDocuments(config, inputs) {
+  const embeddings = [];
+  for (let start = 0; start < inputs.length; start += 48) {
+    const input = inputs.slice(start, start + 48);
+    const result = await aiJSON(config, '/embeddings', {
+      model: 'text-embedding-3-small', dimensions: 384, input
+    });
+    const batch = result.data.sort((left, right) => left.index - right.index);
+    if (batch.length !== input.length || batch.some(row => row.embedding.length !== 384)) {
+      throw new RequestError(502, 'No se pudieron generar los vectores completos.');
+    }
+    embeddings.push(...batch.map(row => row.embedding));
+  }
+  return embeddings;
+}
+
+function documentId(id) {
+  if (typeof id !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)) {
+    throw new RequestError(400, 'Selecciona un documento válido.');
+  }
+  return id;
+}
+
+async function indexSupabaseDocument(config, { id }) {
+  documentId(id);
+  const doc = await libraryCall(config.library, 'read', { id });
+  if (doc.status === 'completed') return libraryDocument(doc);
+  if (new URL(doc.downloadUrl).origin !== config.library.origin) {
+    throw new RequestError(502, 'La biblioteca devolvió una dirección inválida.');
+  }
+  const response = await fetch(doc.downloadUrl, { signal: AbortSignal.timeout(30_000), redirect: 'error' });
+  if (!response.ok) throw new RequestError(409, 'No se encontró el archivo. Vuelve a subirlo.');
+  if (Number(response.headers.get('content-length')) > libraryLimit) {
+    throw new RequestError(413, 'El archivo supera el tamaño permitido.');
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!bytes.length || bytes.length > libraryLimit) throw new RequestError(400, 'El tamaño del archivo no es válido.');
+  if (!await libraryCall(config.library, 'begin', { id })) {
+    throw new RequestError(409, 'El documento ya se está preparando.');
+  }
+  try {
+    let text;
+    try {
+      text = chunkDocument(await documentSections(doc.filename, bytes));
+    } catch (error) {
+      throw new RequestError(422, error.message);
+    }
+    const vectors = await embedDocuments(config, text);
+    const chunks = text.map((part, index) => ({ text: part, vector: vectors[index] }));
+    const indexed = await libraryCall(config.library, 'complete', { id, chunks });
+    return libraryDocument(indexed);
+  } catch (error) {
+    await libraryCall(config.library, 'fail', { id }).catch(() => {});
+    throw error;
+  }
+}
+
+async function updateSupabaseValidity(config, data) {
+  documentId(data.id);
+  if (!['sin_revisar', 'vigente', 'historica', 'derogada'].includes(data.state)) {
+    throw new RequestError(400, 'Selecciona un estado de vigencia válido.');
+  }
+  const from = legalDate(data.from);
+  const until = legalDate(data.until);
+  if (until && (!from || until < from)) {
+    throw new RequestError(400, 'Registra un inicio igual o anterior a la fecha final.');
+  }
+  const version = typeof data.version === 'string' ? data.version.trim().slice(0, 160) : '';
+  const doc = await libraryCall(config.library, 'validity', {
+    id: data.id, state: data.state, from: data.from, until: data.until, version
+  });
+  if (!doc) throw new RequestError(404, 'El documento aún no está listo.');
+  return libraryDocument(doc).validity;
 }
 
 async function uploadDocument(request, url, currentConfig) {
@@ -458,7 +561,9 @@ function json(response, result, code = 200) {
 export async function handle(request, response, { hosted = false } = {}) {
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Content-Type-Options', 'nosniff');
-  response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  const libraryOrigin = hosted ? libraryConfig(request)?.origin : undefined;
+  const cspConnect = libraryOrigin ? "; connect-src 'self' " + libraryOrigin : '';
+  response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" + cspConnect);
   try {
     const origin = (hosted ? 'https://' : 'http://') + request.headers.host;
     const url = new URL(request.url, origin);
@@ -502,7 +607,7 @@ export async function handle(request, response, { hosted = false } = {}) {
       const key = data.key ? messageText(data.key, 512) : '';
       if (key) await aiJSON({ key }, '/models');
       if (hosted) {
-        if (key && config.store) {
+        if (key && config.store && !config.library) {
           await aiJSON({ key }, '/vector_stores/' + encodeURIComponent(config.store));
         }
         if (key) saveHostedKey(response, key);
@@ -522,6 +627,23 @@ export async function handle(request, response, { hosted = false } = {}) {
         return { ...current, key: key || current.key, voice: data.voice, accent: data.accent };
       });
       return json(response, publicSettings(updated));
+    }
+    if (config.library) {
+      if (route === 'POST /api/document-upload') {
+        if (!config.key) throw new RequestError(400, 'Guarda tu clave de OpenAI en Configuración.');
+        return json(response, await libraryCall(config.library, 'sign', await jsonBody(request)), 201);
+      }
+      if (route === 'POST /api/document-index') {
+        if (!config.key) throw new RequestError(400, 'Guarda tu clave de OpenAI en Configuración.');
+        return json(response, await indexSupabaseDocument(config, await jsonBody(request)));
+      }
+      if (route === 'GET /api/documents') {
+        const list = await libraryCall(config.library, 'list');
+        return json(response, list.map(libraryDocument));
+      }
+      if (route === 'POST /api/document-validity') {
+        return json(response, await updateSupabaseValidity(config, await jsonBody(request)));
+      }
     }
     if (route === 'POST /api/documents') return json(response, await uploadDocument(request, url, config), 201);
     if (route === 'GET /api/documents') return json(response, await listDocuments(config));

@@ -804,7 +804,7 @@ async function refreshLibrary({ quiet = false } = {}) {
       return;
     }
     byId('document-note').textContent = 'Puedes elegir varios archivos o arrastrarlos aquí. PDF, Word (.docx), TXT o Markdown, hasta '
-      + config.documentLimit / (1024 * 1024) + ' MB por archivo. OpenAI procesa los documentos.';
+      + config.documentLimit / (1024 * 1024) + ' MB por archivo. Los documentos se preparan para la búsqueda.';
     const files = await (await api('documents')).json();
     for (const file of files) submittedDocuments.delete(file.id);
     const visibleFiles = [...submittedDocuments.values(), ...files];
@@ -922,6 +922,36 @@ dropZone.addEventListener('drop', event => {
   void addSelection(Array.from(event.dataTransfer.files));
 });
 
+const pendingIndex = new WeakMap();
+const documentTypes = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain',
+  md: 'text/markdown'
+};
+
+async function uploadLibraryFile(file) {
+  const { directDocumentUpload } = await getConfig();
+  if (!directDocumentUpload) {
+    return api('documents?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
+  }
+
+  let id = pendingIndex.get(file);
+  if (!id) {
+    const signed = await (await post('document-upload', { name: file.name })).json();
+    const type = documentTypes[file.name.split('.').pop().toLowerCase()];
+    const body = new FormData();
+    body.append('cacheControl', '0');
+    body.append('', new Blob([file], { type }), file.name);
+    const uploaded = await fetch(signed.uploadUrl, { method: 'PUT', body });
+    if (!uploaded.ok) throw new Error('No se pudo guardar el archivo en la biblioteca.');
+    id = signed.id;
+    pendingIndex.set(file, id);
+  }
+  uploadStatus.textContent = 'Preparando el texto de ' + file.name + ' para que el Dr. pueda consultarlo.';
+  return post('document-index', { id });
+}
+
 uploadForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (uploading || refreshing || !selectedFiles.length) return;
@@ -934,7 +964,7 @@ uploadForm.addEventListener('submit', async event => {
   for (const [position, file] of queue.entries()) {
     uploadStatus.textContent = `Subiendo archivo ${position + 1} de ${queue.length}. ${file.name}`;
     try {
-      const response = await api('documents?name=' + encodeURIComponent(file.name), { method: 'POST', body: file });
+      const response = await uploadLibraryFile(file);
       const indexed = await response.json();
       submittedDocuments.set(indexed.id, { ...indexed, status: indexed.status || 'in_progress' });
       selectedFiles = selectedFiles.filter(selected => selected !== file);

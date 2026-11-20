@@ -53,11 +53,15 @@ producción.
 
 Configura estas variables en **Settings → Environment Variables** para cada entorno:
 
+La biblioteca en Supabase usa el bucket privado `dr-constitucional-biblioteca` y el esquema `dr_constitucional`. La función `dr-library` verifica la identidad OIDC del proyecto de producción `wisegt/constitucional-ia-gt`. El rol general de Supabase permanece dentro de la función. La biblioteca de Supabase se habilita en ese despliegue de producción.
+
+Al cargar un PDF se conserva la página de cada pasaje. Para indexar documentos escaneados, sube un PDF con OCR y texto seleccionable.
+
 | Variable | Uso |
 | --- | --- |
 | `APP_ACCESS_PASSWORD` | Contraseña privada de 24 caracteres o más para ingresar a **Configuración**. |
 | `APP_CONFIG_SECRET` | 32 bytes aleatorios, representados por 64 caracteres hexadecimales. Cifra las claves de OpenAI guardadas desde la app. Puedes generarla con `openssl rand -hex 32`. |
-| `OPENAI_VECTOR_STORE_ID` | ID del índice jurídico en OpenAI, del mismo proyecto que la clave de la app. Habilita la biblioteca y la carga de documentos. Usa un índice separado si habilitas la biblioteca en Preview. |
+| `OPENAI_VECTOR_STORE_ID` | ID del índice jurídico en OpenAI, del mismo proyecto que la clave de la app. Habilita el modo de biblioteca anterior cuando Supabase no está configurado. |
 
 La página y el perfil son públicos. Marca la contraseña y el secreto de cifrado como
 secretos. Ingresa a **Configuración** con la contraseña y guarda allí la **clave de OpenAI**.
@@ -68,9 +72,8 @@ tendrás que volver a ingresar la clave. En esta versión, las llamadas a OpenAI
 requieren una sesión de Configuración y una clave guardada. El historial, el número de WhatsApp y las
 preferencias de voz se mantienen en el navegador.
 
-La biblioteca acepta documentos de hasta 4 MiB en Vercel. El dictado admite hasta
-dos minutos por grabación y un máximo de 4 MiB de audio. Los documentos y el índice
-persisten en OpenAI. Cuando el índice esté configurado y la clave tenga acceso a él,
+Con Supabase configurado, la biblioteca acepta documentos de hasta 20 MiB por archivo. Sin Supabase, el límite de carga en Vercel es de 4 MiB. El dictado admite hasta
+dos minutos por grabación y un máximo de 4 MiB de audio. Los archivos y sus fragmentos vectoriales se guardan en Supabase cuando está configurado. OpenAI genera los vectores y redacta las respuestas. Cuando la biblioteca esté configurada y se haya guardado una clave de OpenAI,
 verifica **Biblioteca → Elegir archivos** con un documento de
 prueba autorizado. Cuando el documento indique **Listo para consultar**, haz una consulta que deba citarlo.
 
