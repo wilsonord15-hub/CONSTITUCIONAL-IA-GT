@@ -1,0 +1,7 @@
+{
+  "name": "constitucional-ia-gt",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "dev": "node server.mjs" }
+}

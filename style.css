@@ -1,0 +1,105 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif;
+  background: #10141c;
+  color: #edf1fa;
+  --panel: #171d29;
+  --line: #313c50;
+  --muted: #aebbd0;
+  --accent: #a9c7fa;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+button, input, textarea, select { font: inherit; }
+button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .55rem .85rem;
+  background: var(--panel);
+  color: inherit;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.primary { background: var(--accent); border-color: var(--accent); color: #101d34; font-weight: 700; }
+.top, .chat-heading, .history-title, .dialog-title, .composer-actions, nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+}
+.top { min-height: 68px; padding: 1rem 5vw; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { font-weight: 750; }
+.brand span { margin-right: .35rem; color: var(--accent); }
+.workspace {
+  width: min(1430px, 100%);
+  margin: auto;
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(22rem, 3fr) minmax(14rem, 1.4fr);
+  align-items: start;
+  gap: 1rem;
+  padding: 1rem;
+}
+.history, .conversation, .profile { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+.history { padding: .9rem; }
+.history h2 { font-size: .96rem; margin: 0; }
+ul { padding: 0; list-style: none; }
+#history { max-height: 62vh; overflow: auto; margin: .7rem 0 0; }
+#history button { width: 100%; text-align: left; overflow-wrap: anywhere; margin-bottom: .3rem; }
+#history button[aria-current="true"] { border-color: var(--accent); }
+.conversation { padding: clamp(.75rem, 2vw, 1.5rem); }
+.chat-heading { align-items: flex-start; }
+.chat-heading p, .muted { color: var(--muted); font-size: .86rem; }
+.chat-heading p { margin: 0 0 .2rem; }
+h1 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.8rem); }
+#welcome { padding: clamp(2rem, 7vw, 6rem) 0; text-align: center; }
+#welcome h2 { font-size: clamp(1.2rem, 4vw, 2rem); margin: 0 0 1rem; }
+#messages { display: grid; gap: .85rem; max-height: 55vh; overflow: auto; }
+#messages:empty { display: none; }
+#messages:not(:empty) { margin: 1.25rem 0; }
+.message { padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.message.user { background: #243249; margin-left: clamp(.5rem, 6vw, 4rem); }
+.message p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.message .sources { color: var(--muted); font-size: .85rem; }
+.message footer { display: flex; flex-wrap: wrap; gap: .45rem; }
+.message footer button { font-size: .85rem; }
+textarea, input, select {
+  width: 100%;
+  color: inherit;
+  border: 1px solid var(--line);
+  background: #10141c;
+  border-radius: 8px;
+  padding: .7rem;
+}
+textarea { resize: vertical; }
+.composer-actions { margin-top: .5rem; }
+#status, [id$="-status"] { color: var(--accent); font-size: .9rem; }
+#status:empty, [id$="-status"]:empty { display: none; }
+.profile { overflow: hidden; padding-bottom: .8rem; }
+.portrait { background: radial-gradient(ellipse at 50% 43%, #344c72, #161f32 73%); }
+canvas { width: 100%; display: block; }
+.profile-label { padding: .8rem; display: grid; gap: .25rem; }
+.profile-label span { color: var(--muted); font-size: .85rem; }
+#stop-audio { margin: 0 .8rem; }
+dialog { color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; width: min(calc(100% - 2rem), 31rem); padding: 1.25rem; }
+dialog::backdrop { background: #05070dcc; }
+.dialog-title h2 { margin: 0; }
+dialog label { display: block; font-weight: 600; margin: 1rem 0 .4rem; }
+dialog form .primary { margin-top: .85rem; }
+#documents li { padding: .65rem 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: minmax(9rem, 1fr) minmax(0, 3fr); }
+  .profile { grid-column: 1; grid-row: 1; }
+  .history { grid-row: 2; }
+  .conversation { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (max-width: 600px) {
+  .workspace { display: flex; flex-direction: column; }
+  .workspace > * { width: 100%; }
+  .profile { order: -1; display: flex; align-items: center; padding: 0; }
+  .portrait { width: 88px; flex-shrink: 0; }
+  #history { max-height: 9rem; }
+}

@@ -1,602 +1,86 @@
-
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="es-GT">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DR CONSTITUCIONAL IA</title>
-
-<style>
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: #061629;
-  color: white;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-
-header {
-  padding: 22px 12px;
-}
-
-h1 {
-  margin: 5px;
-  color: #fff;
-}
-
-header p {
-  color: #9edfff;
-}
-
-main {
-  max-width: 850px;
-  margin: auto;
-  padding: 15px;
-}
-
-.robot {
-  position: relative;
-  width: min(100%, 625px);
-  margin: auto;
-  overflow: hidden;
-  border-radius: 22px;
-  border: 2px solid #13bfff;
-  box-shadow: 0 0 25px #008cff66;
-}
-
-.robot img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* =================================
-   MOVIMIENTO FACIAL
-================================= */
-
-/* BOCA ANIMADA */
-
-.mouth {
-  position: absolute;
-  left: 29.6%;
-  top: 36.4%;
-  width: 7.5%;
-  height: 3.4%;
-
-  background: radial-gradient(
-    ellipse at center,
-    #16090d 0%,
-    #321016 65%,
-    #5b2028 100%
-  );
-
-  border: 1px solid #6d333b;
-  border-radius: 45% 45% 50% 50%;
-
-  transform: scaleY(.08);
-  transform-origin: center;
-
-  opacity: 0;
-  overflow: hidden;
-
-  box-shadow:
-    0 0 5px #16090d,
-    inset 0 1px 4px #000;
-}
-
-/* DIENTES */
-
-.mouth::after {
-  content: "";
-  position: absolute;
-
-  top: 9%;
-  left: 17%;
-  width: 66%;
-  height: 28%;
-
-  background: linear-gradient(
-    to bottom,
-    #ffffff,
-    #d7e5ed
-  );
-
-  border-radius: 0 0 45% 45%;
-  opacity: .95;
-}
-
-/* MOVIMIENTO AL HABLAR */
-
-.speaking .mouth {
-  opacity: 1;
-  animation: talk .24s infinite alternate ease-in-out;
-}
-
-@keyframes talk {
-
-  0% {
-    transform: scaleY(.12);
-    border-radius: 50%;
-  }
-
-  20% {
-    transform: scaleY(.38);
-    border-radius: 45%;
-  }
-
-  40% {
-    transform: scaleY(.85);
-    border-radius: 40%;
-  }
-
-  60% {
-    transform: scaleY(1.05);
-    border-radius: 35%;
-  }
-
-  80% {
-    transform: scaleY(.48);
-    border-radius: 45%;
-  }
-
-  100% {
-    transform: scaleY(.72);
-    border-radius: 40%;
-  }
-}
-
-/* OJOS */
-
-.eye {
-  position: absolute;
-  top: 22.5%;
-  height: 3%;
-  width: 7%;
-
-  background: linear-gradient(
-    to bottom,
-    #a66e61,
-    #e0b39c
-  );
-
-  border-radius: 50% 50% 45% 45%;
-  transform: scaleY(0);
-  transform-origin: top;
-  opacity: .95;
-}
-
-.eye.left {
-  left: 27%;
-}
-
-.eye.right {
-  left: 34.7%;
-}
-
-/* PARPADEO */
-
-.blink .eye {
-  animation: blink .16s ease-in-out;
-}
-
-@keyframes blink {
-
-  0%, 100% {
-    transform: scaleY(0);
-  }
-
-  50% {
-    transform: scaleY(1);
-  }
-}
-
-/* ILUMINACIÓN AL HABLAR */
-
-.robot.speaking {
-  box-shadow:
-    0 0 25px #008cff66,
-    0 0 12px #00baff55;
-}
-
-/* CONTROLES */
-
-.status {
-  color: #5bdcff;
-  margin: 15px auto;
-  line-height: 1.5;
-  max-width: 750px;
-  overflow-wrap: anywhere;
-}
-
-.controls {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin: 20px 0;
-}
-
-button {
-  background: #008edb;
-  color: white;
-  border: 0;
-  border-radius: 12px;
-  padding: 15px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #00baff;
-}
-
-button:disabled {
-  opacity: .55;
-  cursor: wait;
-}
-
-input {
-  width: 100%;
-  padding: 15px;
-  border-radius: 10px;
-  border: 1px solid #299bd4;
-  font-size: 16px;
-}
-
-.note {
-  color: #a9c5dc;
-  font-size: 13px;
-  margin: 18px;
-}
-
-@media (max-width: 500px) {
-
-  h1 {
-    font-size: 23px;
-  }
-
-  button {
-    padding: 13px 17px;
-    font-size: 14px;
-  }
-
-}
-
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10141c">
+  <title>Dr. Constitucional IA</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
 </head>
-
 <body>
-
-<header>
-  <h1>⚖ DR CONSTITUCIONAL IA</h1>
-  <p>Asistente de Inteligencia Artificial en Derecho Constitucional</p>
-</header>
-
-<main>
-
-  <div class="robot" id="robot">
-
-    <img
-      src="Retrato%20futurista%20del%20Dr.%20Constitucional%20IA.png"
-      alt="DR CONSTITUCIONAL IA"
-    >
-
-    <div class="eye left"></div>
-    <div class="eye right"></div>
-    <div class="mouth"></div>
-
-  </div>
-
-  <div class="status" id="status" aria-live="polite">
-    Sistema preparado
-  </div>
-
-  <div class="controls">
-
-    <button id="btnRepetir" onclick="repetir()">
-      🎙 REPETIR
-    </button>
-
-    <button id="btnConversar" onclick="conversar()">
-      💬 CONVERSAR
-    </button>
-
-  </div>
-
-  <input
-    id="pregunta"
-    type="text"
-    placeholder="Escribe tu pregunta o mensaje..."
-    autocomplete="off"
-  >
-
-  <div class="controls">
-
-    <button onclick="hablarTexto()">
-      🔊 HACER HABLAR AL ROBOT
-    </button>
-
-    <button onclick="detener()">
-      ⏹ DETENER
-    </button>
-
-  </div>
-
-  <p class="note">
-    Asistente académico de Inteligencia Artificial especializado
-    en Derecho Constitucional.
-  </p>
-
-</main>
-
-<script>
-"use strict";
-
-const URL_ASISTENTE =
-  "https://dr-constitucional-ia.wilsonord15.workers.dev/";
-
-const robot = document.getElementById("robot");
-const status = document.getElementById("status");
-const campoPregunta = document.getElementById("pregunta");
-const btnConversar = document.getElementById("btnConversar");
-
-let escuchaActiva = null;
-
-/* LIMPIAR FORMATO PARA LA VOZ */
-
-function limpiarTextoParaVoz(texto) {
-  return String(texto || "")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/__(.*?)__/g, "$1")
-    .replace(/_(.*?)_/g, "$1")
-    .replace(/^\s*#{1,6}\s*/gm, "")
-    .replace(/^\s*\d+[.)]\s+/gm, "")
-    .replace(/^\s*[-•]\s+/gm, "")
-    .replace(/[*_~`>|]/g, "")
-    .replace(/^\s*[-=]{3,}\s*$/gm, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/* HACER HABLAR AL ROBOT */
-
-function hablar(texto) {
-
-  const textoLimpio = limpiarTextoParaVoz(texto);
-
-  if (!textoLimpio) {
-    status.textContent = "No hay texto para reproducir.";
-    return;
-  }
-
-  if (!("speechSynthesis" in window)) {
-    status.textContent =
-      "Tu navegador no admite reproducción de voz.";
-    return;
-  }
-
-  speechSynthesis.cancel();
-
-  const voz = new SpeechSynthesisUtterance(textoLimpio);
-
-  voz.lang = "es-GT";
-  voz.rate = 0.95;
-  voz.pitch = 1;
-
-  voz.onstart = function() {
-    robot.classList.add("speaking");
-    status.textContent =
-      "DR CONSTITUCIONAL IA está hablando...";
-  };
-
-  voz.onend = function() {
-    robot.classList.remove("speaking");
-    status.textContent = "Sistema preparado";
-  };
-
-  voz.onerror = function() {
-    robot.classList.remove("speaking");
-    status.textContent =
-      "No fue posible reproducir la voz.";
-  };
-
-  speechSynthesis.speak(voz);
-}
-
-/* REPRODUCIR TEXTO ESCRITO */
-
-function hablarTexto() {
-
-  const texto = campoPregunta.value.trim();
-
-  if (!texto) {
-    status.textContent = "Escribe primero un mensaje.";
-    return;
-  }
-
-  hablar(texto);
-}
-
-/* DETENER REPRODUCCIÓN */
-
-function detener() {
-
-  if ("speechSynthesis" in window) {
-    speechSynthesis.cancel();
-  }
-
-  if (escuchaActiva) {
-    escuchaActiva.stop();
-    escuchaActiva = null;
-  }
-
-  robot.classList.remove("speaking");
-  status.textContent = "Reproducción detenida";
-}
-
-/* RECONOCIMIENTO DE VOZ Y REPETICIÓN */
-
-function repetir() {
-
-  const Reconocimiento =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-  if (!Reconocimiento) {
-    status.textContent =
-      "El reconocimiento de voz requiere Google Chrome.";
-    return;
-  }
-
-  if (escuchaActiva) {
-    escuchaActiva.stop();
-  }
-
-  const escucha = new Reconocimiento();
-
-  escucha.lang = "es-GT";
-  escucha.interimResults = false;
-  escucha.maxAlternatives = 1;
-
-  escuchaActiva = escucha;
-
-  escucha.onstart = function() {
-    status.textContent =
-      "Escuchando... habla ahora.";
-  };
-
-  escucha.onresult = function(evento) {
-
-    const texto = evento.results[0][0].transcript;
-
-    campoPregunta.value = texto;
-
-    status.textContent =
-      "Reproduciendo lo que has dicho...";
-
-    hablar(texto);
-  };
-
-  escucha.onerror = function() {
-
-    status.textContent =
-      "No se pudo reconocer la voz. Revisa el permiso del micrófono.";
-
-    escuchaActiva = null;
-  };
-
-  escucha.onend = function() {
-    escuchaActiva = null;
-  };
-
-  escucha.start();
-}
-
-/* CONVERSACIÓN CON INTELIGENCIA ARTIFICIAL */
-
-async function conversar() {
-
-  const pregunta = campoPregunta.value.trim();
-
-  if (!pregunta) {
-    status.textContent =
-      "Escribe una pregunta para comenzar.";
-
-    campoPregunta.focus();
-    return;
-  }
-
-  detener();
-
-  btnConversar.disabled = true;
-
-  status.textContent =
-    "DR CONSTITUCIONAL IA está analizando tu consulta...";
-
-  try {
-
-    const respuesta = await fetch(URL_ASISTENTE, {
-
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json"
-      },
-
-      body: JSON.stringify({
-        question: pregunta
-      })
-
-    });
-
-    const datos = await respuesta.json();
-
-    if (!respuesta.ok) {
-      throw new Error(
-        datos.error || "No se pudo obtener respuesta."
-      );
-    }
-
-    if (!datos.answer) {
-      throw new Error(
-        "El asistente no devolvió una respuesta."
-      );
-    }
-
-    status.textContent = datos.answer;
-
-    hablar(datos.answer);
-
-  } catch (error) {
-
-    console.error("Error de conversación:", error);
-
-    status.textContent =
-      "No fue posible conectar con el asistente. " +
-      "Verifica Cloudflare y vuelve a intentarlo.";
-
-  } finally {
-
-    btnConversar.disabled = false;
-
-  }
-}
-
-/* ENVIAR PREGUNTA CON ENTER */
-
-campoPregunta.addEventListener("keydown", function(evento) {
-
-  if (evento.key === "Enter") {
-    conversar();
-  }
-
-});
-
-/* PARPADEO AUTOMÁTICO */
-
-setInterval(function() {
-
-  if (!robot.classList.contains("speaking")) {
-
-    robot.classList.add("blink");
-
-    setTimeout(function() {
-      robot.classList.remove("blink");
-    }, 200);
-
-  }
-
-}, 3500);
-
-</script>
-
+  <header class="top">
+    <div class="brand"><span aria-hidden="true">⚖</span> Dr. Constitucional IA</div>
+    <nav aria-label="Herramientas">
+      <button id="open-library">Biblioteca</button>
+      <button id="open-settings">Configuración</button>
+    </nav>
+  </header>
+  <main class="workspace">
+    <aside class="history" aria-label="Historial">
+      <div class="history-title"><h2>Historial</h2><button id="new-chat" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
+      <ul id="history"></ul>
+    </aside>
+    <section class="conversation" aria-labelledby="chat-title">
+      <div class="chat-heading">
+        <div><p>Derecho guatemalteco</p><h1 id="chat-title">Consulta jurídica</h1></div>
+        <button id="audio-toggle" aria-pressed="true">Voz activada</button>
+      </div>
+      <div id="welcome">
+        <h2>¿Qué querés consultar?</h2>
+        <button id="start" class="primary">Conversar</button>
+      </div>
+      <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
+      <form id="composer" hidden>
+        <label class="sr-only" for="question">Tu consulta</label>
+        <textarea id="question" rows="2" maxlength="8000" placeholder="Escribí tu consulta…"></textarea>
+        <div class="composer-actions">
+          <button type="button" id="dictate">Dictar</button>
+          <button type="submit" class="primary">Enviar</button>
+        </div>
+      </form>
+      <p id="status" role="status"></p>
+    </section>
+    <aside class="profile" aria-label="Avatar del Dr. Constitucional IA">
+      <div class="portrait"><canvas id="avatar" width="700" height="740" role="img" aria-label="Retrato del Dr. Constitucional IA"></canvas></div>
+      <div class="profile-label"><strong>Dr. Constitucional IA</strong><span>Voz generada por IA</span></div>
+      <button id="stop-audio" hidden>Detener voz</button>
+    </aside>
+  </main>
+  <dialog id="settings">
+    <form id="settings-form">
+      <div class="dialog-title"><h2>Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+      <label for="api-key">Clave API de OpenAI</label>
+      <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Ingresá tu clave">
+      <p id="key-note" class="muted">Se guarda en el servidor local.</p>
+      <label for="voice">Voz</label>
+      <select id="voice"><option value="cedar">Cedar</option><option value="marin">Marin</option><option value="alloy">Alloy</option><option value="onyx">Onyx</option><option value="nova">Nova</option></select>
+      <label for="accent">Acento</label>
+      <select id="accent"><option value="chapin">Guatemalteco (chapín)</option><option value="neutro">Latinoamericano neutro</option></select>
+      <p id="settings-status" role="status"></p>
+      <button class="primary" type="submit">Guardar</button>
+    </form>
+  </dialog>
+  <dialog id="library">
+    <div class="dialog-title"><h2>Biblioteca jurídica</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+    <form id="upload-form">
+      <label for="document">Agregar documento</label>
+      <p class="muted">PDF, DOCX, TXT o Markdown de hasta 20 MB. El archivo se enviará a OpenAI para indexarlo.</p>
+      <input id="document" type="file" accept=".pdf,.docx,.txt,.md" required>
+      <button class="primary" type="submit">Indexar documento</button>
+    </form>
+    <p id="library-status" role="status"></p>
+    <ul id="documents"></ul>
+    <button id="refresh-library" type="button">Actualizar estado</button>
+  </dialog>
+  <dialog id="share">
+    <form id="share-form">
+      <div class="dialog-title"><h2>Compartir por WhatsApp</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+      <label for="phone">Número con código de país</label>
+      <input id="phone" type="tel" autocomplete="tel" placeholder="+502 1234 5678" required>
+      <p id="share-note" class="muted"></p>
+      <button class="primary" type="submit">Abrir WhatsApp</button>
+    </form>
+  </dialog>
 </body>
 </html>
