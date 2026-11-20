@@ -15,9 +15,19 @@ function envelope(elapsed, duration, rise, fall) {
 
 export function createAvatar(canvas, isEngaged = () => false) {
   const ctx = canvas.getContext('2d');
+  const portrait = document.createElement('canvas');
+  portrait.width = canvas.width;
+  portrait.height = canvas.height;
+  const face = portrait.getContext('2d');
+  const posedPortrait = document.createElement('canvas');
+  posedPortrait.width = canvas.width;
+  posedPortrait.height = canvas.height;
+  const posture = posedPortrait.getContext('2d');
   const image = new Image();
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const scale = canvas.width / crop.width;
+  const neckStart = Math.round(505 * scale);
+  const neckEnd = Math.round(694 * scale);
   let blinkAt = 0;
   let gestureAt = 0;
   let yawnAfter = 0;
@@ -28,22 +38,76 @@ export function createAvatar(canvas, isEngaged = () => false) {
   let spokenPose;
   let mouth = 0;
   let mouthWidth = 0;
+  let voiceLevel = 0;
+  let emphasisAt = 0;
+  let nextEmphasis = 0;
+  let speakingSince = 0;
+  let speaking = false;
+  let speakingDirection = 1;
   let paintedMotion = true;
 
-  function paintRegion([x, y, width, height, center], compression, gaze = 0, stretch = 0) {
+  function paintRegion([x, y, width, height, center], compression, gaze = 0, stretch = 0, jaw = 0) {
+    const segments = jaw ? 10 : Math.abs(stretch) > 0.04 ? 5 : 1;
     for (let row = 0; row < height; row++) {
       const fade = Math.sin(Math.PI * row / height) ** 2;
-      const sourceY = y + row - (row - center) * fade * compression;
-      const segments = Math.abs(stretch) > 0.04 ? 5 : 1;
       for (let column = 0; column < segments; column++) {
         const left = column / segments;
         const right = (column + 1) / segments;
+        const taper = jaw ? Math.sin(Math.PI * (left + right) / 2) : 1;
+        const lowerLip = jaw * smooth((row - center + 3) / 31);
+        const sourceY = y + row - ((row - center) * compression + lowerLip) * fade * taper;
         const sourceLeft = x + width * left + Math.sin(2 * Math.PI * left) * stretch * fade * 8;
         const sourceRight = x + width * right + Math.sin(2 * Math.PI * right) * stretch * fade * 8;
-        ctx.drawImage(image, sourceLeft - gaze * fade, sourceY, sourceRight - sourceLeft, 1.8,
+        face.drawImage(image, sourceLeft - gaze * fade, sourceY, sourceRight - sourceLeft, 1.8,
           (x + width * left - crop.x) * scale, (y + row) * scale, width * (right - left) * scale, 1.8 * scale);
       }
     }
+  }
+
+  function moveHead({ headOffset, nod }) {
+    posture.clearRect(0, 0, canvas.width, canvas.height);
+    const weight = y => 1 - smooth((y - neckStart) / (neckEnd - neckStart));
+    for (let y = 0; y < canvas.height;) {
+      const end = y < neckStart ? neckStart : y < neckEnd ? Math.min(neckEnd, y + 8) : canvas.height;
+      const from = weight(y);
+      const to = weight(end);
+      const top = y + Math.round(from * nod);
+      const height = end + Math.round(to * nod) - top;
+      posture.save();
+      posture.transform(1, 0, (to - from) * headOffset / height, 1, from * headOffset, top);
+      posture.drawImage(portrait, 0, y, canvas.width, end - y, 0, 0, canvas.width, height);
+      posture.restore();
+      y = end;
+    }
+  }
+
+  function speakingPose(now, energy) {
+    if (energy >= 0.065 && now >= nextEmphasis && energy * 5 > voiceLevel + 0.12) {
+      if (!speaking) {
+        speaking = true;
+        speakingSince = now;
+      }
+      emphasisAt = now;
+      nextEmphasis = now + 1250 + Math.random() * 950;
+      speakingDirection *= -1;
+    }
+    const target = Math.min(1, energy * 5);
+    voiceLevel += (target - voiceLevel) * (target > voiceLevel ? 0.085 : 0.035);
+    if (!analyser && voiceLevel < 0.01) {
+      speaking = false;
+      nextEmphasis = 0;
+      return;
+    }
+    if (!speaking) return;
+    const emphasis = envelope(now - emphasisAt, 760, 190, 430);
+    const sway = Math.sin((now - speakingSince) / 640) * voiceLevel;
+    return {
+      shoulderRoll: sway * 0.015 + speakingDirection * emphasis * 0.008,
+      shoulderLift: voiceLevel * 4 + emphasis * 2,
+      zoom: voiceLevel * 0.024 + emphasis * 0.015,
+      headOffset: (sway * 7 - speakingDirection * emphasis * 5) * scale,
+      nod: (emphasis * 8 - voiceLevel * 2) * scale
+    };
   }
 
   function restingPose(now, engaged) {
@@ -88,37 +152,39 @@ export function createAvatar(canvas, isEngaged = () => false) {
       ? Math.sin(Math.PI * elapsed / 160) * -2.1 : 0;
     let target = 0;
     let widthTarget = 0;
+    let energy = 0;
     if (analyser && !quiet) {
-      const face = spokenPose?.();
-      if (face) {
-        target = face.open;
-        widthTarget = face.width;
+      analyser.getFloatTimeDomainData(waveform);
+      let power = 0;
+      let change = 0;
+      let previous = waveform[0];
+      for (const sample of waveform) {
+        power += sample * sample;
+        change += (sample - previous) ** 2;
+        previous = sample;
+      }
+      energy = Math.sqrt(power / waveform.length);
+      const cue = spokenPose?.();
+      if (cue) {
+        target = cue.open;
+        widthTarget = cue.width;
       } else {
-        analyser.getFloatTimeDomainData(waveform);
-        let energy = 0;
-        for (const sample of waveform) energy += sample * sample;
-        target = Math.min(1, Math.max(0, Math.sqrt(energy / waveform.length) * 7 - 0.07));
+        target = smooth((energy - 0.012) * 6.5);
+        if (power > 0 && target > 0) widthTarget = target * Math.tanh(Math.sqrt(change / power) * 3 - 0.9);
       }
     }
-    mouth = quiet ? 0 : mouth + (target - mouth) * (target > mouth ? 0.45 : 0.35);
+    mouth = quiet ? 0 : mouth + (target - mouth) * (target > mouth ? 0.52 : 0.4);
     mouthWidth = quiet ? 0 : mouthWidth + (widthTarget - mouthWidth) * 0.38;
-    const moving = pose.weight > 0 || blink !== 0 || mouth > 0.03 || Math.abs(mouthWidth) > 0.04;
-    if (moving || paintedMotion) paint(pose, blink);
+    const speech = speakingPose(now, energy);
+    const moving = Boolean(!quiet && speech) || pose.weight > 0 || blink !== 0 || mouth > 0.03 || Math.abs(mouthWidth) > 0.04;
+    if (moving || paintedMotion) paint(pose, blink, quiet ? undefined : speech);
     paintedMotion = moving;
     requestAnimationFrame(draw);
   }
 
-  function paint({ type, direction = 0, weight }, blink) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    if (weight) {
-      const turn = direction * weight * (type === 'shift' ? 0.025 : 0.012);
-      ctx.translate(canvas.width / 2 + direction * weight * 3, canvas.height * 0.48 + weight * 2);
-      ctx.rotate(turn);
-      ctx.scale(1 + weight * 0.012, 1 + weight * 0.012);
-      ctx.translate(-canvas.width / 2, -canvas.height * 0.48);
-    }
-    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+  function paint({ type, direction = 0, weight }, blink, speech) {
+    face.clearRect(0, 0, canvas.width, canvas.height);
+    face.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
     const gaze = type === 'thought' ? direction * weight * 3.2 : 0;
     const eyelid = type === 'yawn' ? -1.35 * weight : type === 'thought' ? -0.42 * weight : 0;
     if (blink || eyelid || gaze) {
@@ -126,8 +192,24 @@ export function createAvatar(canvas, isEngaged = () => false) {
       paintRegion(leftEye, compression, gaze);
       paintRegion(rightEye, compression, gaze);
     }
-    const lipMovement = type === 'yawn' ? weight * 0.85 : mouth * 0.71;
-    if (lipMovement > 0.02 || Math.abs(mouthWidth) > 0.04) paintRegion(lips, lipMovement, 0, mouthWidth);
+    const lipMovement = type === 'yawn' ? weight * 0.85 : mouth * 0.84;
+    if (lipMovement > 0.02 || Math.abs(mouthWidth) > 0.04) {
+      paintRegion(lips, lipMovement, 0, mouthWidth, mouth * 4.3);
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    if (weight || speech) {
+      const turn = direction * weight * (type === 'shift' ? 0.025 : 0.012) + (speech?.shoulderRoll || 0);
+      ctx.translate(canvas.width / 2 + direction * weight * 3,
+        canvas.height * 0.48 + weight * 2 - (speech?.shoulderLift || 0));
+      ctx.rotate(turn);
+      const zoom = 1 + weight * 0.012 + (speech?.zoom || 0);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-canvas.width / 2, -canvas.height * 0.48);
+    }
+    if (speech) moveHead(speech);
+    ctx.drawImage(speech ? posedPortrait : portrait, 0, 0);
     ctx.restore();
   }
 
