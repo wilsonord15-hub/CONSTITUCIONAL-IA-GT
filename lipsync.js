@@ -9,6 +9,42 @@ const shape = {
   dental: { open: 0.22, width: 0.23, weight: 0.78 }
 };
 
+export function createAudioMouth(analyser, sampleRate) {
+  const waveform = new Float32Array(analyser.fftSize);
+  const spectrum = new Float32Array(analyser.frequencyBinCount);
+  const recent = waveform.subarray(Math.max(0, waveform.length - Math.round(sampleRate * 0.018)));
+  const binWidth = sampleRate / analyser.fftSize;
+
+  function band(from, to) {
+    let power = 0;
+    const first = Math.ceil(from / binWidth);
+    const last = Math.min(spectrum.length, Math.ceil(to / binWidth));
+    for (let index = first; index < last; index++) power += 10 ** (spectrum[index] / 10);
+    return last > first ? power / (last - first) : 0;
+  }
+
+  return () => {
+    analyser.getFloatTimeDomainData(waveform);
+    const energy = Math.sqrt(recent.reduce((sum, value) => sum + value * value, 0) / recent.length);
+    if (energy <= 0.004) return { energy, open: 0, width: 0 };
+
+    analyser.getFloatFrequencyData(spectrum);
+    const low = band(250, 580);
+    const middle = band(580, 1050);
+    const rounded = band(850, 1450);
+    const front = band(1450, 2800);
+    const hiss = band(3000, 6200);
+    const lift = middle / (low + middle + 1e-12);
+    const consonant = hiss / (hiss + middle + rounded + front + 1e-12);
+    const strength = 1 - Math.exp(-(energy - 0.004) * 45);
+    return {
+      energy,
+      open: strength * (0.64 + 0.36 * lift) * (1 - consonant * 0.65),
+      width: strength * Math.tanh(Math.log((front + hiss + 1e-11) / (rounded + 1e-11)) * 0.62)
+    };
+  };
+}
+
 export function decodeSpeech(buffer, contentType) {
   if (!contentType?.startsWith('application/x-dr-speech')) return { audio: buffer, words: [] };
   if (buffer.byteLength < 5) throw new Error('La muestra de voz está incompleta.');

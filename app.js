@@ -5,6 +5,8 @@ const byId = id => document.getElementById(id);
 const avatar = createAvatar(byId('avatar'), () => busy || processingDictation || Boolean(speechRequest));
 const status = byId('status');
 const micWave = byId('mic-wave');
+const doctorWave = byId('doctor-wave');
+const doctorSpeaking = byId('doctor-speaking');
 const input = byId('question');
 const messages = byId('messages');
 const composer = byId('composer');
@@ -467,12 +469,12 @@ function showSpeechStop() {
   stopButton.hidden = false;
 }
 
-function showMicWave(analyser) {
-  const context = micWave.getContext('2d');
+function showAudioWave(canvas, analyser) {
+  const context = canvas.getContext('2d');
   if (!context) return () => {};
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const samples = analyser && new Float32Array(analyser.fftSize);
-  const { width, height } = micWave;
+  const { width, height } = canvas;
   const bars = 17;
   const colors = context.createLinearGradient(0, 0, 0, height);
   colors.addColorStop(0, '#91ecff');
@@ -522,31 +524,74 @@ function showMicWave(analyser) {
     if (analyser && !motion.matches) frame = requestAnimationFrame(animate);
   }
 
-  micWave.hidden = false;
+  canvas.hidden = false;
   updateMotion();
   motion.addEventListener('change', updateMotion);
   return () => {
     cancelAnimationFrame(frame);
     motion.removeEventListener('change', updateMotion);
-    micWave.hidden = true;
+    canvas.hidden = true;
+  };
+}
+
+function monitorDoctorOutput(analyser, canPlay = () => true, onSpeaking = () => {}) {
+  analyser.smoothingTimeConstant = 0.32;
+  const samples = new Float32Array(analyser.fftSize);
+  let hideWave;
+  let linked = false;
+  let lastSound = -Infinity;
+  let speaking = false;
+
+  function check() {
+    analyser.getFloatTimeDomainData(samples);
+    const recent = samples.subarray(samples.length - 640);
+    const power = recent.reduce((sum, sample) => sum + sample * sample, 0) / recent.length;
+    const now = performance.now();
+    const sound = power > 0.000036;
+    const audible = canPlay(sound, now);
+    if (audible !== linked) {
+      linked = audible;
+      avatar.connect(audible ? analyser : undefined, audioContext.sampleRate);
+    }
+    if (audible && sound) lastSound = now;
+    if (!audible) lastSound = -Infinity;
+    const active = audible && now - lastSound < 170;
+    if (active === speaking) return;
+    speaking = active;
+    doctorSpeaking.hidden = !active;
+    if (active) hideWave = showAudioWave(doctorWave, analyser);
+    else hideWave?.();
+    onSpeaking(active);
+  }
+
+  check();
+  const timer = setInterval(check, 33);
+  return {
+    check,
+    close() {
+      clearInterval(timer);
+      hideWave?.();
+      doctorSpeaking.hidden = true;
+      if (linked) avatar.connect();
+    }
   };
 }
 
 function showDictationWave(stream) {
-  if (!audioContext) return showMicWave();
+  if (!audioContext) return showAudioWave(micWave);
   let source;
   try {
     const analyser = audioContext.createAnalyser();
     source = audioContext.createMediaStreamSource(stream);
     source.connect(analyser);
-    const hide = showMicWave(analyser);
+    const hide = showAudioWave(micWave, analyser);
     return () => {
       hide();
       source.disconnect();
     };
   } catch {
     source?.disconnect();
-    return showMicWave();
+    return showAudioWave(micWave);
   }
 }
 
@@ -568,13 +613,14 @@ async function playSpeechStream(response, signal) {
   const reader = response.body.getReader();
   const analyser = audioContext.createAnalyser();
   analyser.connect(audioContext.destination);
-  avatar.connect(analyser);
+  const output = monitorDoctorOutput(analyser);
   const sources = new Set();
   let position = 0;
   let remainingByte;
   let done = false;
 
   function finish() {
+    output.close();
     analyser.disconnect();
     if (signal.aborted) return;
     playback = undefined;
@@ -584,6 +630,7 @@ async function playSpeechStream(response, signal) {
   }
 
   playback = () => {
+    output.close();
     void reader.cancel().catch(() => {});
     for (const source of sources) {
       source.onended = null;
@@ -737,6 +784,7 @@ stopButton.addEventListener('click', () => {
     session.interrupted = true;
     session.quietSince = 0;
     liveAudio.muted = true;
+    session.speakerMonitor?.check();
     session.call?.interrupt();
     setCallMuted(session, false);
     switchToText.focus({ preventScroll: true });
@@ -964,7 +1012,7 @@ function updateCallWave(session) {
   if (voiceSession !== session) return;
   const reading = session.state === 'connected' && !session.muted && session.micAnalyser;
   if (reading && !session.hideWave) {
-    session.hideWave = showMicWave(session.micAnalyser);
+    session.hideWave = showAudioWave(micWave, session.micAnalyser);
   } else if (!reading && session.hideWave) {
     session.hideWave();
     session.hideWave = undefined;
@@ -984,7 +1032,7 @@ function leaveVoiceMode({ focus = false, clearStatus = false, graceful = true } 
   const session = voiceSession;
   voiceSession = undefined;
   clearTimeout(session.saveTimer);
-  clearInterval(session.speakerMonitor);
+  session.speakerMonitor?.close();
   session.hideWave?.();
   session.micSource?.disconnect();
   session.remoteSource?.disconnect();
@@ -1035,30 +1083,23 @@ function connectCallMicrophone(session, stream) {
 function connectCallOutput(session, stream) {
   liveAudio.srcObject = stream;
   void playCallAudio(session);
-  clearInterval(session.speakerMonitor);
+  session.speakerMonitor?.close();
   session.remoteSource?.disconnect();
   const analyser = audioContext.createAnalyser();
   session.remoteSource = audioContext.createMediaStreamSource(stream);
   session.remoteSource.connect(analyser);
-  const samples = new Float32Array(analyser.fftSize);
-  session.speakerMonitor = setInterval(() => {
-    analyser.getFloatTimeDomainData(samples);
-    const energy = samples.reduce((sum, value) => sum + value * value, 0) / samples.length;
-    const now = performance.now();
-    if (energy > 0.00008) session.quietSince = 0;
+  session.speakerMonitor = monitorDoctorOutput(analyser, (sound, now) => {
+    if (sound) session.quietSince = 0;
     else session.quietSince ||= now;
     if (session.interrupted && session.quietSince && now - session.quietSince > 380) {
       session.interrupted = false;
       liveAudio.muted = false;
     }
-    const speaking = !session.interrupted && !session.playBlocked &&
-      (!session.quietSince || (session.speaking && now - session.quietSince < 200));
-    if (session.speaking !== speaking) {
-      session.speaking = speaking;
-      avatar.connect(speaking ? analyser : undefined);
-    }
+    return !liveAudio.muted && !liveAudio.paused && !session.playBlocked;
+  }, speaking => {
+    session.speaking = speaking;
     showCallStatus(session);
-  }, 60);
+  });
 }
 
 function showLiveTranscript(session, turn, ordered) {

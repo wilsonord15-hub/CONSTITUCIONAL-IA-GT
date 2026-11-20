@@ -467,6 +467,9 @@ textarea { resize: vertical; }
 canvas { width: 100%; display: block; }
 .profile-label { padding: .8rem; display: grid; gap: .25rem; font-size: .91rem; }
 .profile-label span { color: var(--muted); font-size: .79rem; }
+.doctor-speaking { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.doctor-speaking span { color: #d9efff; }
+.doctor-speaking canvas { width: min(54%, 7rem); height: 1.4rem; }
 .chat-voice-controls { display: grid; gap: .4rem; justify-items: end; }
 #stop-audio {
   border-color: #efa79c91;
@@ -576,6 +579,7 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
 }
 @media (max-width: 700px) {
   #chat-title { scroll-margin-top: 6rem; }
+  .workspace:has(#doctor-speaking:not([hidden])) #chat-title { scroll-margin-top: 7.5rem; }
   .top, .workspace { width: min(calc(100% - 1.5rem), 36rem); }
   .top {
     display: grid;

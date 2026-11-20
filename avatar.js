@@ -1,7 +1,9 @@
+import { createAudioMouth } from './lipsync.js';
+
 const crop = { x: 178, y: 0, width: 1022, height: 1080 };
 const leftEye = [531, 277, 70, 40, 18];
 const rightEye = [716, 269, 69, 41, 18];
-const lips = [569, 419, 177, 75, 32];
+const mouthSeam = [[582, 448], [603, 451], [625, 450], [650, 450], [664, 450], [679, 447], [696, 446], [714, 446], [736, 442]];
 const durations = { shift: 2400, thought: 3600, yawn: 4500 };
 
 function smooth(progress) {
@@ -33,11 +35,10 @@ export function createAvatar(canvas, isEngaged = () => false) {
   let yawnAfter = 0;
   let gesture;
   let previousGesture;
-  let analyser;
-  let waveform;
-  let spokenPose;
+  let readMouth;
   let mouth = 0;
   let mouthWidth = 0;
+  let lastFrame;
   let voiceLevel = 0;
   let emphasisAt = 0;
   let nextEmphasis = 0;
@@ -46,22 +47,63 @@ export function createAvatar(canvas, isEngaged = () => false) {
   let speakingDirection = 1;
   let paintedMotion = true;
 
-  function paintRegion([x, y, width, height, center], compression, gaze = 0, stretch = 0, jaw = 0) {
-    const segments = jaw ? 10 : Math.abs(stretch) > 0.04 ? 5 : 1;
+  function paintRegion([x, y, width, height, center], compression, gaze) {
     for (let row = 0; row < height; row++) {
       const fade = Math.sin(Math.PI * row / height) ** 2;
-      for (let column = 0; column < segments; column++) {
-        const left = column / segments;
-        const right = (column + 1) / segments;
-        const taper = jaw ? Math.sin(Math.PI * (left + right) / 2) : 1;
-        const lowerLip = jaw * smooth((row - center + 3) / 31);
-        const sourceY = y + row - ((row - center) * compression + lowerLip) * fade * taper;
-        const sourceLeft = x + width * left + Math.sin(2 * Math.PI * left) * stretch * fade * 8;
-        const sourceRight = x + width * right + Math.sin(2 * Math.PI * right) * stretch * fade * 8;
-        face.drawImage(image, sourceLeft - gaze * fade, sourceY, sourceRight - sourceLeft, 1.8,
-          (x + width * left - crop.x) * scale, (y + row) * scale, width * (right - left) * scale, 1.8 * scale);
-      }
+      const sourceY = y + row - (row - center) * compression * fade;
+      face.drawImage(image, x - gaze * fade, sourceY, width, 1.8,
+        (x - crop.x) * scale, (y + row) * scale, width * scale, 1.8 * scale);
     }
+  }
+
+  function paintMouth(open, width) {
+    const area = { left: 554, right: 766, top: 416, bottom: 515 };
+    const [left, right] = [mouthSeam[0][0], mouthSeam.at(-1)[0]];
+    const middle = (left + right) / 2;
+    const slices = [];
+    const sourceX = x => x - width * 0.17 * (x - middle) *
+      Math.sin(Math.PI * (x - area.left) / (area.right - area.left)) ** 2;
+    for (let x = area.left; x < area.right; x += 4) {
+      const source = sourceX(x + 2);
+      let seam = source < left ? mouthSeam[0][1] : mouthSeam.at(-1)[1];
+      for (let index = 1; index < mouthSeam.length; index++) {
+        const [from, y1] = mouthSeam[index - 1];
+        const [to, y2] = mouthSeam[index];
+        if (source >= from && source <= to) {
+          seam = y1 + (y2 - y1) * (source - from) / (to - from);
+          break;
+        }
+      }
+      const position = (source - left) / (right - left);
+      const contour = Math.sin(Math.PI * Math.max(0, Math.min(1, position))) ** 1.4;
+      const opening = 38 * open * contour;
+      slices.push({ x, seam, upper: seam - opening * 0.22, lower: seam + opening * 0.78 });
+    }
+
+    face.save();
+    face.scale(scale, scale);
+    face.translate(-crop.x, 0);
+    const depth = face.createLinearGradient(0, 439, 0, 474);
+    depth.addColorStop(0, '#60312d');
+    depth.addColorStop(0.5, '#733c37');
+    depth.addColorStop(1, '#a7685f');
+    face.fillStyle = depth;
+    face.beginPath();
+    for (const slice of slices) face.lineTo(slice.x + 2, slice.upper - 0.65);
+    for (const slice of slices.slice().reverse()) face.lineTo(slice.x + 2, slice.lower + 0.65);
+    face.closePath();
+    face.fill();
+
+    for (const { x, seam, upper, lower } of slices) {
+      const from = sourceX(x);
+      const to = sourceX(Math.min(area.right, x + 4.35));
+      const drawnWidth = Math.min(area.right - x, 4.35);
+      face.drawImage(image, from, area.top, to - from, seam - area.top,
+        x, area.top, drawnWidth, upper - area.top);
+      face.drawImage(image, from, seam, to - from, area.bottom - seam,
+        x, lower, drawnWidth, area.bottom - lower);
+    }
+    face.restore();
   }
 
   function moveHead({ headOffset, nod }) {
@@ -93,7 +135,7 @@ export function createAvatar(canvas, isEngaged = () => false) {
     }
     const target = Math.min(1, energy * 5);
     voiceLevel += (target - voiceLevel) * (target > voiceLevel ? 0.085 : 0.035);
-    if (!analyser && voiceLevel < 0.01) {
+    if (energy < 0.004 && voiceLevel < 0.01) {
       speaking = false;
       nextEmphasis = 0;
       return;
@@ -143,39 +185,20 @@ export function createAvatar(canvas, isEngaged = () => false) {
 
   function draw(now) {
     const quiet = reducedMotion.matches;
-    const engaged = Boolean(analyser) || isEngaged();
+    const cue = !quiet && readMouth ? readMouth() : { energy: 0, open: 0, width: 0 };
+    const engaged = cue.energy > 0.004 || isEngaged();
     const pose = restingPose(now, quiet || engaged);
     if (!blinkAt) blinkAt = now + 3000;
     const elapsed = now - blinkAt;
     if (elapsed > 160) blinkAt = now + 2300 + Math.random() * 3700;
     const blink = !quiet && elapsed >= 0 && elapsed < 160
       ? Math.sin(Math.PI * elapsed / 160) * -2.1 : 0;
-    let target = 0;
-    let widthTarget = 0;
-    let energy = 0;
-    if (analyser && !quiet) {
-      analyser.getFloatTimeDomainData(waveform);
-      let power = 0;
-      let change = 0;
-      let previous = waveform[0];
-      for (const sample of waveform) {
-        power += sample * sample;
-        change += (sample - previous) ** 2;
-        previous = sample;
-      }
-      energy = Math.sqrt(power / waveform.length);
-      const cue = spokenPose?.();
-      if (cue) {
-        target = cue.open;
-        widthTarget = cue.width;
-      } else {
-        target = smooth((energy - 0.012) * 6.5);
-        if (power > 0 && target > 0) widthTarget = target * Math.tanh(Math.sqrt(change / power) * 3 - 0.9);
-      }
-    }
-    mouth = quiet ? 0 : mouth + (target - mouth) * (target > mouth ? 0.52 : 0.4);
-    mouthWidth = quiet ? 0 : mouthWidth + (widthTarget - mouthWidth) * 0.38;
-    const speech = speakingPose(now, energy);
+    const frameTime = Math.min(48, now - (lastFrame ?? now - 16));
+    lastFrame = now;
+    const change = 1 - Math.exp(-frameTime / (cue.open > mouth ? 17 : 26));
+    mouth = quiet ? 0 : mouth + (cue.open - mouth) * change;
+    mouthWidth = quiet ? 0 : mouthWidth + (cue.width - mouthWidth) * (1 - Math.exp(-frameTime / 23));
+    const speech = speakingPose(now, cue.energy);
     const moving = Boolean(!quiet && speech) || pose.weight > 0 || blink !== 0 || mouth > 0.03 || Math.abs(mouthWidth) > 0.04;
     if (moving || paintedMotion) paint(pose, blink, quiet ? undefined : speech);
     paintedMotion = moving;
@@ -192,9 +215,9 @@ export function createAvatar(canvas, isEngaged = () => false) {
       paintRegion(leftEye, compression, gaze);
       paintRegion(rightEye, compression, gaze);
     }
-    const lipMovement = type === 'yawn' ? weight * 0.85 : mouth * 0.84;
+    const lipMovement = type === 'yawn' ? weight * 0.76 : mouth;
     if (lipMovement > 0.02 || Math.abs(mouthWidth) > 0.04) {
-      paintRegion(lips, lipMovement, 0, mouthWidth, mouth * 4.3);
+      paintMouth(lipMovement, mouthWidth);
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -216,10 +239,8 @@ export function createAvatar(canvas, isEngaged = () => false) {
   image.onload = () => requestAnimationFrame(draw);
   image.src = '/retrato.png';
   return {
-    connect(node, poseAtTime) {
-      analyser = node;
-      waveform = node ? new Float32Array(node.fftSize) : undefined;
-      spokenPose = node ? poseAtTime : undefined;
+    connect(node, sampleRate) {
+      readMouth = node ? createAudioMouth(node, sampleRate) : undefined;
     }
   };
 }
