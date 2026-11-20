@@ -24,23 +24,25 @@ const fragmentShader = `
     float ice = height - sin(p.x * (1.0 + spread) + phase) * 0.34;
     float blue = height - sin(p.x + phase) * 0.34;
     float violet = height - sin(p.x * (1.0 - spread) + phase) * 0.34;
-    vec3 color = mix(vec3(0.024, 0.061, 0.125), vec3(0.045, 0.115, 0.207), 1.0 - uv.y);
-    color += vec3(0.11, 0.42, 0.62) * beam(ice, 0.0013);
+    vec3 color = vec3(0.11, 0.42, 0.62) * beam(ice, 0.0013);
     color += vec3(0.10, 0.28, 0.54) * beam(blue, 0.0009);
     color += vec3(0.19, 0.16, 0.45) * beam(violet, 0.0008);
     color += vec3(0.20, 0.33, 0.47) * beam(blue, 0.014) * 0.50;
-    color *= mix(0.67, 1.0, smoothstep(0.06, 0.42, uv.x));
-    gl_FragColor = vec4(color, 1.0);
+    float brightness = max(color.r, max(color.g, color.b));
+    float fade = smoothstep(0.0, 0.12, uv.y) * smoothstep(0.0, 0.12, 1.0 - uv.y);
+    gl_FragColor = vec4(color / max(brightness, 0.001), min(brightness, 1.0) * fade);
   }
 `;
 
 async function createWave() {
-  const context = canvas.getContext('webgl2', { alpha: false, antialias: false, powerPreference: 'low-power' });
+  const context = canvas.getContext('webgl2', {
+    alpha: true, premultipliedAlpha: false, antialias: false, powerPreference: 'low-power'
+  });
   if (!context) return;
 
   const { WebGLRenderer, Scene, Camera, Mesh, PlaneGeometry, ShaderMaterial, Vector2 } =
     await import('./three.module.js');
-  const renderer = new WebGLRenderer({ canvas, context });
+  const renderer = new WebGLRenderer({ canvas, context, alpha: true, premultipliedAlpha: false });
   const scene = new Scene();
   const camera = new Camera();
   const uniforms = { resolution: { value: new Vector2() }, time: { value: 0 } };

@@ -11,12 +11,13 @@ export function libraryConfig(request) {
   return { url: supabaseOrigin + '/functions/v1/dr-library', token, origin: supabaseOrigin };
 }
 
-export async function libraryCall(config, operation, payload = {}) {
+export async function libraryCall(config, operation, payload = {}, signal) {
+  const timeout = AbortSignal.timeout(35_000);
   const response = await fetch(config.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + config.token },
     body: JSON.stringify({ operation, payload }),
-    signal: AbortSignal.timeout(35_000)
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout
   });
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new Error(body?.error || 'No se pudo contactar a la biblioteca.');

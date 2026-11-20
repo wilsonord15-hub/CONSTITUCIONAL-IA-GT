@@ -1,9 +1,10 @@
 import { createAvatar } from './avatar.js';
-import { decodeSpeech, makeMouthTrack } from './lipsync.js';
+import { createLiveCall } from './live-call.js';
 
 const byId = id => document.getElementById(id);
 const avatar = createAvatar(byId('avatar'), () => busy || processingDictation || Boolean(speechRequest));
 const status = byId('status');
+const micWave = byId('mic-wave');
 const input = byId('question');
 const messages = byId('messages');
 const composer = byId('composer');
@@ -18,7 +19,9 @@ const dictationText = byId('dictation-preview-text');
 const send = composer.querySelector('[type="submit"]');
 const switchToVoice = byId('switch-to-voice');
 const switchToText = byId('switch-to-text');
-const finishVoiceTurn = byId('finish-voice-turn');
+const muteCall = byId('mute-call');
+const activateCallAudio = byId('activate-call-audio');
+const liveAudio = byId('live-audio');
 const historyList = byId('history');
 const historyRecent = byId('history-recent');
 const historyArchived = byId('history-archived');
@@ -228,7 +231,7 @@ function buildMessage(turn) {
   const article = document.createElement('article');
   article.className = 'message ' + (turn.role === 'user' ? 'user' : 'assistant');
   const author = document.createElement('strong');
-  author.textContent = turn.role === 'user' ? 'Tú' : 'Dr. Constitucional IA';
+  author.textContent = turn.role === 'user' ? 'Tú' : turn.libraryResult ? 'Biblioteca jurídica' : 'Dr. Constitucional IA';
   const body = document.createElement('p');
   const text = turn.greeting
     ? turn.text.replace(/ Soy el Dr\. Constitucional IA\..*$/, greetingContinuation)
@@ -257,8 +260,8 @@ function buildMessage(turn) {
   if (!turn.greeting) {
     const topic = turn.role === 'user' ? 'pregunta' : 'respuesta';
     const actions = document.createElement('footer');
-    actions.className = 'flex flex-wrap gap-2 compact:action-pair';
-    const copy = button('Copiar', async () => {
+    actions.className = 'message-actions';
+    const copy = button('', async () => {
       try {
         await navigator.clipboard.writeText(actionText(turn));
         status.textContent = turn.role === 'user' ? 'Pregunta copiada.' : 'Respuesta copiada.';
@@ -266,18 +269,22 @@ function buildMessage(turn) {
         status.textContent = 'No se pudo copiar. Puedes seleccionar el texto manualmente.';
       }
     });
-    const share = button('WhatsApp', () => openShare(turn));
+    const share = button('', () => openShare(turn));
     copy.setAttribute('aria-label', 'Copiar ' + topic);
     share.setAttribute('aria-label', 'Compartir ' + topic + ' por WhatsApp');
-    iconLabel(copy, '⧉', 'Copiar');
-    iconLabel(share, '↗', 'WhatsApp');
+    copy.title = 'Copiar';
+    share.title = 'Compartir por WhatsApp';
+    copy.append(outlineIcon('copy'));
+    share.append(outlineIcon('whatsapp'));
     actions.append(copy, share);
     article.append(actions);
   }
   return article;
 }
 
-const historyIcons = {
+const outlineIcons = {
+  copy: 'M8 8h12v12H8zM16 4H4v12',
+  whatsapp: 'M20.5 11.8a8.5 8.5 0 0 1-12.7 7.4L4 20l.9-3.7a8.5 8.5 0 1 1 15.6-4.5ZM9 8.4c.6-.5 1.1.5 1.4 1.1l-.8.9a6 6 0 0 0 3.8 3.3l.8-.9c.6.2 1.9.6 1.7 1.3-.2 1-1.2 1.6-2.2 1.4-3.5-.8-6-3.6-5.6-5.8.1-.6.4-1 .9-1.3Z',
   conversation: 'M7 8h10M7 12h6M4 4h16v12H9l-5 4V4Z',
   open: 'm9 6 6 6-6 6',
   archive: 'M4 8h16v12H4zM3 4h18v4H3zM9 12h6',
@@ -285,13 +292,14 @@ const historyIcons = {
   delete: 'M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 10v7m4-7v7'
 };
 
-function historyIcon(name) {
+function outlineIcon(name) {
   const namespace = 'http://www.w3.org/2000/svg';
   const icon = document.createElementNS(namespace, 'svg');
   icon.setAttribute('viewBox', '0 0 24 24');
   icon.setAttribute('aria-hidden', 'true');
+  icon.setAttribute('focusable', 'false');
   const outline = document.createElementNS(namespace, 'path');
-  outline.setAttribute('d', historyIcons[name]);
+  outline.setAttribute('d', outlineIcons[name]);
   icon.append(outline);
   return icon;
 }
@@ -306,7 +314,7 @@ function historyAction(name, label, title, action) {
   control.className = 'history-action';
   control.title = label;
   control.setAttribute('aria-label', label + ' conversación: ' + title);
-  control.append(historyIcon(name));
+  control.append(outlineIcon(name));
   return control;
 }
 
@@ -388,7 +396,7 @@ function renderHistory() {
     }
     const nameLabel = document.createElement('span');
     nameLabel.textContent = title;
-    item.append(historyIcon('conversation'), nameLabel, historyIcon('open'));
+    item.append(outlineIcon('conversation'), nameLabel, outlineIcon('open'));
 
     const tools = document.createElement('div');
     tools.className = 'history-entry-tools';
@@ -407,13 +415,17 @@ function renderHistory() {
   }
 }
 
-function appendTurn(turn) {
-  chat.turns.push(turn);
+function rememberConversation(turn) {
   if (turn.role === 'user' && history[0] !== chat) {
     const previous = history.indexOf(chat);
     if (previous !== -1) history.splice(previous, 1);
     history.unshift(chat);
   }
+}
+
+function appendTurn(turn) {
+  chat.turns.push(turn);
+  rememberConversation(turn);
   messages.append(buildMessage(turn));
   messages.scrollTop = messages.scrollHeight;
   renderHistory();
@@ -450,6 +462,94 @@ function stopSpeech() {
   }
 }
 
+function showSpeechStop() {
+  byId('stop-audio-label').textContent = voiceSession ? 'Interrumpir y hablar' : 'Detener voz';
+  stopButton.hidden = false;
+}
+
+function showMicWave(analyser) {
+  const context = micWave.getContext('2d');
+  if (!context) return () => {};
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const samples = analyser && new Float32Array(analyser.fftSize);
+  const { width, height } = micWave;
+  const bars = 17;
+  const colors = context.createLinearGradient(0, 0, 0, height);
+  colors.addColorStop(0, '#91ecff');
+  colors.addColorStop(0.53, '#59bdfe');
+  colors.addColorStop(1, '#b183ff');
+  let frame;
+  let lastDraw = 0;
+
+  function draw(time) {
+    const responsive = samples && !motion.matches;
+    if (responsive) analyser.getFloatTimeDomainData(samples);
+    context.clearRect(0, 0, width, height);
+    context.lineWidth = 5;
+    context.lineCap = 'round';
+    context.strokeStyle = colors;
+    context.beginPath();
+    for (let bar = 0; bar < bars; bar++) {
+      let level = 0;
+      if (responsive) {
+        const start = Math.floor(bar * samples.length / bars);
+        const end = Math.floor((bar + 1) * samples.length / bars);
+        for (let sample = start; sample < end; sample++) {
+          level += samples[sample] ** 2;
+        }
+        level = Math.min(1, Math.sqrt(level / (end - start)) * 6);
+      }
+      const x = (bar + 0.5) * width / bars;
+      const shape = 0.57 + 0.43 * Math.sin(bar * 0.5 + time * 0.006);
+      const length = responsive ? 3 + level * shape * 42 : 3 + Math.sin(Math.PI * bar / (bars - 1)) * 10;
+      context.moveTo(x, (height - length) / 2);
+      context.lineTo(x, (height + length) / 2);
+    }
+    context.stroke();
+  }
+
+  function animate(time) {
+    if (time - lastDraw >= 32) {
+      draw(time);
+      lastDraw = time;
+    }
+    frame = requestAnimationFrame(animate);
+  }
+
+  function updateMotion() {
+    cancelAnimationFrame(frame);
+    draw(performance.now());
+    if (analyser && !motion.matches) frame = requestAnimationFrame(animate);
+  }
+
+  micWave.hidden = false;
+  updateMotion();
+  motion.addEventListener('change', updateMotion);
+  return () => {
+    cancelAnimationFrame(frame);
+    motion.removeEventListener('change', updateMotion);
+    micWave.hidden = true;
+  };
+}
+
+function showDictationWave(stream) {
+  if (!audioContext) return showMicWave();
+  let source;
+  try {
+    const analyser = audioContext.createAnalyser();
+    source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const hide = showMicWave(analyser);
+    return () => {
+      hide();
+      source.disconnect();
+    };
+  } catch {
+    source?.disconnect();
+    return showMicWave();
+  }
+}
+
 function unlockAudio(force = false, feedback = force ? previewStatus : status) {
   if (!audioEnabled && !force) return;
   try {
@@ -460,7 +560,7 @@ function unlockAudio(force = false, feedback = force ? previewStatus : status) {
   }
 }
 
-async function playSpeechStream(response, signal, onEnd) {
+async function playSpeechStream(response, signal) {
   if (!response.body || !response.headers.get('Content-Type')?.startsWith('application/x-dr-pcm')) {
     throw new Error('La voz llegó en un formato inesperado.');
   }
@@ -481,7 +581,6 @@ async function playSpeechStream(response, signal, onEnd) {
     speechRequest = undefined;
     avatar.connect();
     stopButton.hidden = true;
-    onEnd?.();
   }
 
   playback = () => {
@@ -530,52 +629,24 @@ async function playSpeechStream(response, signal, onEnd) {
   if (!sources.size && !signal.aborted) finish();
 }
 
-async function speak(text, preset, onEnd, onError) {
+async function speak(text) {
   if (!audioEnabled || !audioContext) return;
   stopSpeech();
   const controller = new AbortController();
   speechRequest = controller;
-  stopButton.hidden = false;
+  showSpeechStop();
   try {
     const response = await post('speech', {
-      text: preset ? undefined : text.replace(/\[\d+\]/g, '').slice(0, 4096),
-      preset,
-      stream: !preset,
+      text: text.replace(/\[\d+\]/g, '').slice(0, 4096),
+      stream: true,
       voice: voicePreference.voice,
       accent: voicePreference.accent
     }, controller.signal);
-    if (!preset) return await playSpeechStream(response, controller.signal, onEnd);
-    const { audio, words } = decodeSpeech(await response.arrayBuffer(), response.headers.get('Content-Type'));
-    const decoded = await audioContext.decodeAudioData(audio);
-    if (controller.signal.aborted) return;
-    const source = audioContext.createBufferSource();
-    const analyser = audioContext.createAnalyser();
-    source.buffer = decoded;
-    source.connect(analyser).connect(audioContext.destination);
-    const track = makeMouthTrack(words, decoded.duration);
-    const start = audioContext.currentTime + 0.015;
-    avatar.connect(analyser, track && (() => track(audioContext.currentTime - start)));
-    playback = () => {
-      source.onended = null;
-      source.stop();
-      source.disconnect();
-    };
-    source.onended = () => {
-      analyser.disconnect();
-      source.disconnect();
-      playback = undefined;
-      speechRequest = undefined;
-      avatar.connect();
-      stopButton.hidden = true;
-      onEnd?.();
-    };
-    controller.signal.addEventListener('abort', () => analyser.disconnect(), { once: true });
-    source.start(start);
+    await playSpeechStream(response, controller.signal);
   } catch (error) {
     if (controller.signal.aborted) return;
     stopSpeech();
     status.textContent = error.message;
-    onError?.();
   }
 }
 
@@ -585,10 +656,10 @@ function startConversation(byVoice) {
   const hello = visitorProfile?.name ? '¡Hola, ' + visitorProfile.name + '!' : '¡Hola!';
   const greeting = hello + greetingContinuation;
   renderChat();
-  appendTurn({ role: 'assistant', text: greeting, greeting: true });
   if (byVoice) {
     void enterVoiceMode(true);
   } else {
+    appendTurn({ role: 'assistant', text: greeting, greeting: true });
     setAudioEnabled(false);
     input.focus();
   }
@@ -598,7 +669,14 @@ byId('start').addEventListener('click', () => startConversation(true));
 byId('start-text').addEventListener('click', () => startConversation(false));
 switchToVoice.addEventListener('click', () => void enterVoiceMode());
 switchToText.addEventListener('click', () => leaveVoiceMode({ focus: true, clearStatus: true }));
-finishVoiceTurn.addEventListener('click', () => voiceSession?.finishTurn?.());
+muteCall.addEventListener('click', () => {
+  if (voiceSession) setCallMuted(voiceSession, !voiceSession.muted);
+});
+activateCallAudio.addEventListener('click', () => {
+  if (!voiceSession) return;
+  unlockAudio();
+  void playCallAudio(voiceSession);
+});
 
 byId('new-chat').addEventListener('click', () => {
   if (busy || processingDictation || recorder) return;
@@ -650,14 +728,22 @@ function setAudioEnabled(enabled) {
 }
 
 audioToggle.addEventListener('click', () => {
-  if (voiceSession) leaveVoiceMode({ focus: true, clearStatus: true });
-  else setAudioEnabled(!audioEnabled);
+  setAudioEnabled(!audioEnabled);
 });
 
 stopButton.addEventListener('click', () => {
   const session = voiceSession;
-  stopSpeech();
-  if (session) void listenForTurn(session);
+  if (session) {
+    session.interrupted = true;
+    session.quietSince = 0;
+    liveAudio.muted = true;
+    session.call?.interrupt();
+    setCallMuted(session, false);
+    switchToText.focus({ preventScroll: true });
+  } else {
+    stopSpeech();
+    if (!composer.hidden) input.focus({ preventScroll: true });
+  }
 });
 
 input.addEventListener('keydown', event => {
@@ -673,7 +759,7 @@ composer.addEventListener('submit', event => {
   void submitQuestion(question);
 });
 
-async function submitQuestion(question, session) {
+async function submitQuestion(question) {
   if (!chat || chat.archived === true || busy || recorder || processingDictation) return;
   unlockAudio();
   stopSpeech();
@@ -689,7 +775,7 @@ async function submitQuestion(question, session) {
     messages.lastElementChild?.remove();
   }
   appendTurn(turn);
-  if (!session) input.value = '';
+  input.value = '';
   status.textContent = 'Preparando la respuesta…';
   try {
     const answer = await (await post('chat', {
@@ -697,18 +783,15 @@ async function submitQuestion(question, session) {
       history: context,
       profile: visitorProfile?.name ? visitorProfile : undefined,
       accent: voicePreference.accent,
-      mode: byId('query-mode').value,
-      asOf: byId('query-date').value
+      ...queryOptions()
     })).json();
     delete turn.pending;
     status.textContent = '';
     appendTurn({ role: 'assistant', ...answer });
-    if (session === voiceSession && session) playVoiceTurn(session, answer.text);
-    else if (!session) void speak(answer.text);
+    void speak(answer.text);
   } catch (error) {
     if (!input.value) input.value = question;
     status.textContent = error.message;
-    if (session && session === voiceSession) leaveVoiceMode({ focus: true });
   } finally {
     busy = false;
     send.disabled = false;
@@ -850,18 +933,67 @@ async function transcribeRecording(chunks, mime, audioLimit, signal) {
 }
 
 function renderInputMode() {
-  input.hidden = Boolean(voiceSession);
-  byId('text-actions').hidden = Boolean(voiceSession);
-  byId('voice-actions').hidden = !voiceSession;
+  const active = Boolean(voiceSession);
+  input.hidden = active;
+  byId('text-actions').hidden = active;
+  byId('voice-actions').hidden = !active;
+  audioToggle.hidden = active;
   switchToVoice.disabled = busy || processingDictation;
-  finishVoiceTurn.disabled = !voiceSession?.finishTurn;
+  muteCall.disabled = voiceSession?.state !== 'connected';
+  muteCall.setAttribute('aria-pressed', String(Boolean(voiceSession?.muted)));
+  muteCall.textContent = voiceSession?.muted ? 'Activar micrófono' : 'Silenciar micrófono';
+  activateCallAudio.hidden = !voiceSession?.playBlocked;
 }
 
-function leaveVoiceMode({ focus = false, clearStatus = false } = {}) {
+function showCallStatus(session) {
+  if (voiceSession !== session) return;
+  stopButton.hidden = !(session.lookingUp || session.speaking) || session.interrupted;
+  byId('stop-audio-label').textContent = 'Interrumpir y hablar';
+  const labels = {
+    connecting: 'Conectando la llamada…',
+    reconnecting: 'Recuperando la conexión…'
+  };
+  const text = labels[session.state] || (session.playBlocked ? 'Activa el audio para oír al Dr.'
+    : session.lookingUp ? 'Consultando la biblioteca…'
+    : session.muted ? 'Micrófono silenciado.'
+    : 'Te escucho…');
+  if (status.textContent !== text) status.textContent = text;
+}
+
+function updateCallWave(session) {
+  if (voiceSession !== session) return;
+  const reading = session.state === 'connected' && !session.muted && session.micAnalyser;
+  if (reading && !session.hideWave) {
+    session.hideWave = showMicWave(session.micAnalyser);
+  } else if (!reading && session.hideWave) {
+    session.hideWave();
+    session.hideWave = undefined;
+  }
+}
+
+function setCallMuted(session, muted) {
+  session.muted = muted;
+  session.call?.mute(muted);
+  renderInputMode();
+  updateCallWave(session);
+  showCallStatus(session);
+}
+
+function leaveVoiceMode({ focus = false, clearStatus = false, graceful = true } = {}) {
   if (!voiceSession) return;
   const session = voiceSession;
   voiceSession = undefined;
-  session.controller.abort();
+  clearTimeout(session.saveTimer);
+  clearInterval(session.speakerMonitor);
+  session.hideWave?.();
+  session.micSource?.disconnect();
+  session.remoteSource?.disconnect();
+  session.call?.close(graceful);
+  liveAudio.pause();
+  liveAudio.srcObject = null;
+  liveAudio.muted = false;
+  if (history.includes(session.chat)) persist();
+  if (chat === session.chat) renderHistory();
   setAudioEnabled(false);
   renderInputMode();
   if (clearStatus && !busy) status.textContent = '';
@@ -870,151 +1002,166 @@ function leaveVoiceMode({ focus = false, clearStatus = false } = {}) {
 
 function voiceError(session, error) {
   if (voiceSession !== session) return;
-  leaveVoiceMode({ focus: true });
+  leaveVoiceMode({ focus: true, graceful: false });
   status.textContent = error.name === 'NotAllowedError' ? 'Permite el uso del micrófono para conversar.'
     : error.name === 'NotFoundError' ? 'No se detectó ningún micrófono.'
     : error.message;
 }
 
-function playVoiceTurn(session, text, preset) {
-  status.textContent = 'El Dr. está respondiendo…';
-  void speak(text, preset,
-    () => void listenForTurn(session),
-    () => leaveVoiceMode({ focus: true }));
+function playCallAudio(session) {
+  return liveAudio.play().then(() => {
+    if (voiceSession !== session) return;
+    session.playBlocked = false;
+    renderInputMode();
+    showCallStatus(session);
+  }).catch(() => {
+    if (voiceSession !== session) return;
+    session.playBlocked = true;
+    renderInputMode();
+    showCallStatus(session);
+  });
+}
+
+function connectCallMicrophone(session, stream) {
+  session.hideWave?.();
+  session.hideWave = undefined;
+  session.micSource?.disconnect();
+  session.micSource = audioContext.createMediaStreamSource(stream);
+  session.micAnalyser = audioContext.createAnalyser();
+  session.micSource.connect(session.micAnalyser);
+  updateCallWave(session);
+}
+
+function connectCallOutput(session, stream) {
+  liveAudio.srcObject = stream;
+  void playCallAudio(session);
+  clearInterval(session.speakerMonitor);
+  session.remoteSource?.disconnect();
+  const analyser = audioContext.createAnalyser();
+  session.remoteSource = audioContext.createMediaStreamSource(stream);
+  session.remoteSource.connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  session.speakerMonitor = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    const energy = samples.reduce((sum, value) => sum + value * value, 0) / samples.length;
+    const now = performance.now();
+    if (energy > 0.00008) session.quietSince = 0;
+    else session.quietSince ||= now;
+    if (session.interrupted && session.quietSince && now - session.quietSince > 380) {
+      session.interrupted = false;
+      liveAudio.muted = false;
+    }
+    const speaking = !session.interrupted && !session.playBlocked &&
+      (!session.quietSince || (session.speaking && now - session.quietSince < 200));
+    if (session.speaking !== speaking) {
+      session.speaking = speaking;
+      avatar.connect(speaking ? analyser : undefined);
+    }
+    showCallStatus(session);
+  }, 60);
+}
+
+function showLiveTranscript(session, turn, ordered) {
+  if (voiceSession !== session) return;
+  let node = session.nodes.get(turn);
+  if (!node) {
+    const later = ordered.slice(ordered.indexOf(turn) + 1).find(item => session.nodes.has(item));
+    const position = later ? chat.turns.indexOf(later) : chat.turns.length;
+    chat.turns.splice(position, 0, turn);
+    rememberConversation(turn);
+    node = buildMessage(turn);
+    session.nodes.set(turn, node);
+    messages.insertBefore(node, later ? session.nodes.get(later) : null);
+  } else {
+    node.querySelector('p').textContent = plainMessage(turn.text);
+  }
+  messages.scrollTop = messages.scrollHeight;
+  if (!session.saveTimer) {
+    session.saveTimer = setTimeout(() => {
+      session.saveTimer = undefined;
+      if (history.includes(chat)) persist();
+      renderHistory();
+    }, 300);
+  }
+}
+
+function queryOptions() {
+  return { mode: byId('query-mode').value, asOf: byId('query-date').value };
 }
 
 async function enterVoiceMode(greet = false) {
   if (voiceSession || !chat || chat.archived || busy || processingDictation) return;
-  const session = { controller: new AbortController() };
+  const session = { state: 'connecting', chat, muted: false, nodes: new WeakMap() };
   voiceSession = session;
   setAudioEnabled(true);
   stopSpeech();
   renderInputMode();
-  switchToText.focus();
-  status.textContent = 'Preparando la conversación por voz…';
+  showCallStatus(session);
+  switchToText.focus({ preventScroll: true });
   try {
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !audioContext) {
+    if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection || !audioContext) {
       throw new Error('La conversación por voz requiere un navegador compatible y HTTPS o localhost.');
     }
     const config = await getConfig();
     if (voiceSession !== session) return;
     if (!config.configured) throw new Error(config.adminRequired
       ? 'La conversación con IA para visitantes todavía no está habilitada.' : keyRequired);
-    session.audioLimit = config.audioLimit;
-    if (greet) playVoiceTurn(session, undefined, 'saludo');
-    else void listenForTurn(session);
-  } catch (error) {
-    voiceError(session, error);
-  }
-}
-
-async function listenForTurn(session) {
-  if (voiceSession !== session || session.listening) return;
-  const { signal } = session.controller;
-  session.listening = true;
-  status.textContent = 'Abriendo el micrófono…';
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    const voice = voicePreference.voice || config.voice;
+    const accent = voicePreference.accent || config.accent;
+    session.call = createLiveCall({
+      negotiate: async (sdp, signal) => (await post('live-session', {
+        sdp, voice, accent, greet,
+        history: session.chat.turns.filter(turn => !turn.greeting && !turn.pending).slice(-24),
+        profile: visitorProfile?.name ? visitorProfile : undefined
+      }, signal)).json(),
+      lookup: async (turn, signal) => (await post('live-lookup', {
+        question: turn.text,
+        history: session.chat.turns.slice(0, session.chat.turns.indexOf(turn))
+          .filter(item => !item.greeting && !item.pending).slice(-20),
+        profile: visitorProfile?.name ? visitorProfile : undefined,
+        accent,
+        ...queryOptions()
+      }, signal)).json(),
+      onTranscript: (turn, ordered) => showLiveTranscript(session, turn, ordered),
+      onMicrophone: stream => connectCallMicrophone(session, stream),
+      onRemote: stream => connectCallOutput(session, stream),
+      onState(state) {
+        session.state = state;
+        renderInputMode();
+        updateCallWave(session);
+        showCallStatus(session);
+        if (state === 'connected') syncCallContext();
+      },
+      onLookup(active) {
+        session.lookingUp = active;
+        showCallStatus(session);
+      },
+      onEvidence(result) {
+        if (voiceSession === session) appendTurn({ role: 'assistant', libraryResult: true, ...result });
+      },
+      onError: error => voiceError(session, error)
     });
-    if (signal.aborted) return;
-    const audio = await recordVoiceTurn(stream, session);
-    if (signal.aborted) return;
-    status.textContent = 'Transcribiendo tu consulta…';
-    const question = await transcribeRecording(audio.chunks, audio.mime, session.audioLimit, signal);
-    if (signal.aborted) return;
-    session.listening = false;
-    await submitQuestion(question.slice(0, input.maxLength), session);
+    await session.call.connect();
   } catch (error) {
     voiceError(session, error);
-  } finally {
-    stream?.getTracks().forEach(track => track.stop());
   }
 }
 
-function recordVoiceTurn(stream, session) {
-  const { signal } = session.controller;
-  const capture = createDictationRecorder(stream);
-  const source = audioContext.createMediaStreamSource(stream);
-  const analyser = audioContext.createAnalyser();
-  analyser.fftSize = 2048;
-  source.connect(analyser);
-  const samples = new Float32Array(analyser.fftSize);
-  const chunks = [];
-  const start = performance.now();
-  let lastSpeech = start;
-  let voicedFrames = 0;
-  let timer;
-
-  return new Promise((resolve, reject) => {
-    function release() {
-      clearInterval(timer);
-      signal.removeEventListener('abort', cancel);
-      source.disconnect();
-      stream.getTracks().forEach(track => track.stop());
-      session.finishTurn = undefined;
-      renderInputMode();
-    }
-
-    function finish() {
-      if (capture.state !== 'recording') return;
-      clearInterval(timer);
-      session.finishTurn = undefined;
-      renderInputMode();
-      capture.stop();
-    }
-
-    function cancel() {
-      capture.onstop = null;
-      finish();
-      release();
-      reject(signal.reason);
-    }
-
-    capture.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
-    capture.onerror = () => {
-      capture.onstop = null;
-      release();
-      reject(new Error('No se pudo grabar tu consulta. Revisa el micrófono e intenta de nuevo.'));
-    };
-    capture.onstop = () => {
-      release();
-      if (voicedFrames < 3) {
-        reject(new Error('No te escuché. Pulsa Hablar con el Dr. para volver a intentar.'));
-        return;
-      }
-      resolve({ chunks, mime: chunks.find(chunk => chunk.type)?.type || capture.mimeType || '' });
-    };
-    try {
-      capture.start();
-    } catch (error) {
-      release();
-      reject(error);
-      return;
-    }
-    signal.addEventListener('abort', cancel, { once: true });
-    status.textContent = 'Te escucho…';
-    timer = setInterval(() => {
-      analyser.getFloatTimeDomainData(samples);
-      const power = samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length;
-      const now = performance.now();
-      if (power > 0.00032) {
-        lastSpeech = now;
-        if (++voicedFrames === 3) {
-          session.finishTurn = finish;
-          renderInputMode();
-        }
-      }
-      const heardSpeech = voicedFrames >= 3;
-      const finishedSpeaking = heardSpeech && now - lastSpeech >= 1_200;
-      const turnTimedOut = now - start >= (heardSpeech ? 120_000 : 30_000);
-      if (finishedSpeaking || turnTimedOut) finish();
-    }, 50);
-  });
+function syncCallContext() {
+  const session = voiceSession;
+  if (session?.state !== 'connected') return;
+  const { mode, asOf } = queryOptions();
+  const modeLabel = mode === 'audiencia' ? 'Audiencia o exposición' : 'Consulta jurídica';
+  const context = 'Modo elegido: ' + modeLabel + '. Fecha de referencia: ' + (asOf || 'ninguna') + '.';
+  if (session.context !== context) {
+    session.context = context;
+    session.call.updateContext(context);
+  }
 }
 
-window.addEventListener('pagehide', () => leaveVoiceMode());
+byId('query-mode').addEventListener('change', syncCallContext);
+byId('query-date').addEventListener('change', syncCallContext);
+window.addEventListener('pagehide', () => leaveVoiceMode({ graceful: false }));
 
 dictate.addEventListener('click', async () => {
   if (recorder?.state === 'recording') {
@@ -1030,12 +1177,14 @@ dictate.addEventListener('click', async () => {
   let stream;
   let limit;
   let stopPreview;
+  let hideWave;
   let released = false;
   function releaseCapture() {
     if (released) return;
     released = true;
     clearTimeout(limit);
     stopPreview?.();
+    hideWave?.();
     stream?.getTracks().forEach(track => track.stop());
   }
   function reset() {
@@ -1092,6 +1241,7 @@ dictate.addEventListener('click', async () => {
     limit = setTimeout(finishRecording, 120_000);
     setDictationState('recording');
     status.textContent = 'Habla y pulsa Terminar dictado cuando hayas terminado.';
+    hideWave = showDictationWave(stream);
     void startDictationPreview(stream, () => released).then(cleanup => {
       if (released) cleanup?.();
       else stopPreview = cleanup;
@@ -1193,6 +1343,10 @@ function selectedVoiceSample() {
   return byId('voice').value + '-' + byId('accent').value;
 }
 
+function voiceSampleUrl(name) {
+  return '/voice-previews/v1/' + name + '.mp3';
+}
+
 function renderVoicePreview() {
   if (previewingVoice) return;
   const sample = voiceSamples.get(selectedVoiceSample());
@@ -1201,30 +1355,31 @@ function renderVoicePreview() {
     : sample && !sample.url ? 'Descargando la muestra…' : '';
 }
 
+function preloadVoiceSample(name) {
+  if (voiceSamples.has(name) && !voiceSamples.get(name).failed) return;
+  const sample = {};
+  voiceSamples.set(name, sample);
+  void fetch(voiceSampleUrl(name))
+    .then(response => {
+      if (!response.ok || !response.headers.get('Content-Type')?.startsWith('audio/')) {
+        throw new Error('Muestra no disponible');
+      }
+      return response.blob();
+    })
+    .then(blob => {
+      sample.url = URL.createObjectURL(blob);
+    })
+    .catch(() => {
+      sample.failed = true;
+    })
+    .finally(() => {
+      if (name === selectedVoiceSample()) renderVoicePreview();
+    });
+}
+
 function preloadVoiceSamples() {
   for (const voice of byId('voice').options) {
-    for (const accent of byId('accent').options) {
-      const name = voice.value + '-' + accent.value;
-      if (voiceSamples.has(name) && !voiceSamples.get(name).failed) continue;
-      const sample = {};
-      voiceSamples.set(name, sample);
-      void fetch('/voice-previews/v1/' + name + '.mp3')
-        .then(response => {
-          if (!response.ok || !response.headers.get('Content-Type')?.startsWith('audio/')) {
-            throw new Error('Muestra no disponible');
-          }
-          return response.blob();
-        })
-        .then(blob => {
-          sample.url = URL.createObjectURL(blob);
-        })
-        .catch(() => {
-          sample.failed = true;
-        })
-        .finally(() => {
-          if (name === selectedVoiceSample()) renderVoicePreview();
-        });
-    }
+    for (const accent of byId('accent').options) preloadVoiceSample(voice.value + '-' + accent.value);
   }
   renderVoicePreview();
 }
@@ -1623,3 +1778,4 @@ document.querySelectorAll('[data-close]').forEach(control => {
 
 renderChat();
 if (!visitorProfile) openProfile(true);
+void getConfig().catch(() => {});

@@ -117,20 +117,10 @@ button:disabled { opacity: .45; cursor: default; }
 .site-footer {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   display: grid;
   align-content: center;
-  width: min(calc(100% - 3rem), 1376px);
-  min-height: clamp(8rem, 13vw, 10.5rem);
-  margin: 0 auto 1.5rem;
-  border: 1px solid #a3ccff48;
-  border-radius: 20px;
-  background:
-    radial-gradient(ellipse 110% 125% at 64% 161%, transparent 73%, #3778c433 76%, #86c9fe66 78%, #214e9d4d 79%, transparent 82%),
-    radial-gradient(ellipse at 66% 118%, #3b68aa92, transparent 58%),
-    radial-gradient(ellipse at 27% 80%, #2f76a366, transparent 53%),
-    #081528;
-  box-shadow: var(--inset), 0 16px 45px #03091986;
+  min-height: clamp(7.5rem, 12vw, 10.5rem);
+  background: radial-gradient(ellipse 110% 125% at 64% 161%, transparent 73%, #3778c433 76%, #86c9fe66 78%, #214e9d4d 79%, transparent 82%);
 }
 .footer-wave {
   position: absolute;
@@ -144,17 +134,10 @@ button:disabled { opacity: .45; cursor: default; }
 .footer-wave[data-rendered] { opacity: 1; }
 .footer-content {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  gap: .75rem 1.4rem;
-  padding: 1.25rem clamp(1.25rem, 4vw, 3.5rem);
-}
-.footer-content p {
-  margin: 0;
-  color: #f1f7ff;
-  font: 400 clamp(1.2rem, 2.4vw, 1.9rem)/1.2 Georgia, "Times New Roman", serif;
-  text-shadow: 0 2px 12px #060e21;
+  width: min(calc(100% - 3rem), 1376px);
+  margin-inline: auto;
 }
 .footer-glass-link {
   display: inline-flex;
@@ -177,8 +160,14 @@ button:disabled { opacity: .45; cursor: default; }
   box-shadow: inset 0 1px 0 #ecf8ffc7, 0 0 20px #8bbdff66;
 }
 .footer-glass-link span { color: #c4e4ff; }
+.footer-glass-link:focus-visible { outline: 2px solid #acd9ff; outline-offset: 3px; }
+#chat-title { scroll-margin-top: 1rem; }
+#chat-title:focus { outline: none; }
 @media (max-width: 560px) {
-  .site-footer { width: calc(100% - 1.5rem); }
+  .footer-content { justify-content: center; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .site-footer:has(.footer-wave[data-rendered]) { background: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .footer-wave { display: none; }
@@ -348,9 +337,30 @@ h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2.35rem); }
 #messages:not(:empty) { margin: 1rem 0; }
 .message { padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 15px; background: #e3e8ff08; }
 .message.user { background: linear-gradient(150deg, #294569, #1a2d4c); margin-left: clamp(.4rem, 5vw, 3rem); }
-.message p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.58; }
+.message, #question { font-family: "Helvetica Neue", "Segoe UI", system-ui, sans-serif; }
+.message p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.message > p:not(.sources), #question { font-weight: 300; }
+.message > strong { font-weight: 600; }
 .message .sources { color: var(--muted); font-size: .85rem; }
-.message footer button { min-height: 36px; }
+.message-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+.message-actions button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: #9acbff12;
+  color: var(--light);
+}
+.message-actions svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 textarea, input, select {
   width: 100%;
   color: inherit;
@@ -428,6 +438,19 @@ textarea { resize: vertical; }
 .validity-row button { min-height: 40px; }
 #status, [id$="-status"] { color: #dbe0f3; font-size: .88rem; overflow-wrap: anywhere; }
 #status:empty, [id$="-status"]:empty { display: none; }
+.audio-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem 1rem;
+}
+.audio-feedback:has(.mic-wave:not([hidden])) { margin-top: .65rem; }
+.audio-feedback:has(.mic-wave:not([hidden])) #status {
+  margin: 0;
+  color: #d9efff;
+}
+.mic-wave { width: 7rem; height: 1.75rem; flex: none; }
 .profile {
   position: sticky;
   top: 1rem;
@@ -444,7 +467,12 @@ textarea { resize: vertical; }
 canvas { width: 100%; display: block; }
 .profile-label { padding: .8rem; display: grid; gap: .25rem; font-size: .91rem; }
 .profile-label span { color: var(--muted); font-size: .79rem; }
-#stop-audio { margin: 0 .8rem .55rem; }
+.chat-voice-controls { display: grid; gap: .4rem; justify-items: end; }
+#stop-audio {
+  border-color: #efa79c91;
+  background: linear-gradient(150deg, #763747, #462538);
+  color: #fff1f1;
+}
 dialog { color: inherit; width: min(calc(100% - 1.5rem), 44rem); max-height: min(90dvh, 54rem); padding: clamp(1.15rem, 3.25vw, 2rem); }
 dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
 .dialog-title { padding-bottom: .9rem; border-bottom: 1px solid var(--line); }
@@ -547,6 +575,7 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
   .conversation { grid-area: chat; }
 }
 @media (max-width: 700px) {
+  #chat-title { scroll-margin-top: 6rem; }
   .top, .workspace { width: min(calc(100% - 1.5rem), 36rem); }
   .top {
     display: grid;
@@ -578,7 +607,6 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
     padding: 0;
   }
   .portrait { align-self: stretch; border: 0; border-right: 1px solid var(--line); }
-  #stop-audio { margin: .55rem .6rem .55rem 0; }
   .profile-label { padding: .6rem; overflow-wrap: anywhere; }
   .conversation { padding: clamp(.85rem, 3.3vw, 1.35rem); }
   .history { min-height: 0; }
@@ -588,15 +616,14 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
   #welcome h2 { margin: 1.25rem 0 1rem; }
   #messages { max-height: min(55dvh, 27rem); }
 
-  button, #new-chat, [data-close], .message footer button, .validity-row button {
+  button, #new-chat, [data-close], .validity-row button {
     min-height: 44px;
   }
   #new-chat, [data-close], #close-validity { min-width: 44px; flex-shrink: 0; }
-  .composer-actions button, .profile-actions button, .message footer button, .settings-nav button {
+  .composer-actions button, .profile-actions button, .settings-nav button {
     min-width: 0;
     padding-inline: .5rem;
   }
-  .message footer button:only-child { grid-column: 1 / -1; }
   textarea, input, select { min-width: 0; font-size: 1rem; }
   .field-grid { gap: .85rem; }
   dialog {
@@ -639,7 +666,6 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
 @media (max-width: 350px) {
   .top nav button { font-size: .7rem; }
   .profile { grid-template-columns: 3.8rem minmax(0, 1fr); }
-  #stop-audio { grid-column: 1 / -1; margin: .35rem .6rem .6rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

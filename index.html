@@ -42,7 +42,10 @@
     <section class="conversation" aria-labelledby="chat-title">
       <div class="chat-heading">
         <div><p id="visitor-greeting" hidden></p><p>Derecho guatemalteco</p><h1 id="chat-title" tabindex="-1">Consulta jurídica</h1></div>
-        <button id="audio-toggle" aria-pressed="true"><span class="icon" aria-hidden="true">◖))</span> <span id="audio-label">Voz activada</span></button>
+        <div class="chat-voice-controls">
+          <button id="audio-toggle" type="button" aria-pressed="true"><span class="icon" aria-hidden="true">◖))</span> <span id="audio-label">Voz activada</span></button>
+          <button id="stop-audio" type="button" hidden><span class="icon" aria-hidden="true">■</span> <span id="stop-audio-label">Interrumpir y hablar</span></button>
+        </div>
       </div>
       <section id="profile-dialog" class="profile-editor glass-filter-card" hidden aria-labelledby="profile-heading" aria-describedby="profile-intro">
         <div class="workspace-panel-heading">
@@ -130,24 +133,27 @@
           <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
         </div>
         <div id="voice-actions" class="composer-actions flex flex-wrap items-center justify-between gap-3" hidden>
-          <button type="button" id="finish-voice-turn" disabled>Enviar lo que dije</button>
-          <button type="button" id="switch-to-text">Cambiar a escritura</button>
+          <button type="button" id="mute-call" aria-pressed="false" disabled>Silenciar micrófono</button>
+          <button type="button" id="activate-call-audio" hidden>Activar audio</button>
+          <button type="button" id="switch-to-text" aria-label="Colgar y volver a escribir">Colgar</button>
         </div>
       </form>
-      <p id="status" role="status"></p>
+      <audio id="live-audio" autoplay playsinline hidden></audio>
+      <div class="audio-feedback">
+        <p id="status" role="status"></p>
+        <canvas id="mic-wave" class="mic-wave" width="224" height="56" aria-hidden="true" hidden></canvas>
+      </div>
     </section>
     <aside class="profile" aria-label="Avatar del Dr. Constitucional IA">
       <div class="portrait">
         <canvas id="avatar" width="700" height="740" role="img" aria-label="Retrato del Dr. Constitucional IA con la bandera de Guatemala en el traje"></canvas>
       </div>
       <div class="profile-label"><strong>Dr. Constitucional IA</strong><span>Voz generada por IA</span></div>
-      <button id="stop-audio" hidden><span class="icon" aria-hidden="true">■</span> Detener voz</button>
     </aside>
   </main>
   <footer class="site-footer">
     <canvas class="footer-wave" aria-hidden="true"></canvas>
     <div class="footer-content">
-      <p>Dr. Constitucional IA</p>
       <a class="footer-glass-link" href="#chat-title"><span aria-hidden="true">↑</span> Volver a la consulta</a>
     </div>
   </footer>

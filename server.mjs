@@ -28,6 +28,7 @@ const assets = new Map([
   ['/avatar.js', ['avatar.js', 'text/javascript; charset=utf-8']],
   ['/lipsync.js', ['lipsync.js', 'text/javascript; charset=utf-8']],
   ['/dictation-worklet.js', ['public/dictation-worklet.js', 'text/javascript; charset=utf-8']],
+  ['/live-call.js', ['public/live-call.js', 'text/javascript; charset=utf-8']],
   ['/footer-shader.js', ['public/footer-shader.js', 'text/javascript; charset=utf-8']],
   ['/three.module.js', ['node_modules/three/build/three.module.js', 'text/javascript; charset=utf-8']],
   ['/three.core.js', ['node_modules/three/build/three.core.js', 'text/javascript; charset=utf-8']],
@@ -208,7 +209,7 @@ async function jsonBody(request) {
   }
 }
 
-async function openAI(config, path, body, timeout = 100_000) {
+async function openAI(config, path, body, timeout = 100_000, signal) {
   if (!config.key) throw new RequestError(400, 'Guarda tu clave de OpenAI en Configuración.');
   const multipart = body instanceof FormData;
   const headers = { Authorization: 'Bearer ' + config.key };
@@ -219,7 +220,7 @@ async function openAI(config, path, body, timeout = 100_000) {
       method: body ? 'POST' : 'GET',
       headers,
       body: multipart ? body : body && JSON.stringify(body),
-      signal: AbortSignal.timeout(timeout)
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout)
     });
   } catch {
     throw new RequestError(502, 'No se pudo conectar con OpenAI. Intenta de nuevo.');
@@ -231,8 +232,8 @@ async function openAI(config, path, body, timeout = 100_000) {
   throw new RequestError(502, 'OpenAI no pudo completar la operación.');
 }
 
-async function aiJSON(config, path, body) {
-  return (await openAI(config, path, body)).json();
+async function aiJSON(config, path, body, signal) {
+  return (await openAI(config, path, body, undefined, signal)).json();
 }
 
 function messageText(value, max = 8000) {
@@ -258,7 +259,7 @@ function visitorContext(profile) {
   };
 }
 
-async function converse(config, data) {
+async function converse(config, data, signal, requireEvidence = false) {
   const question = messageText(data.question);
   const asOf = legalDate(data.asOf);
   const hearing = data.mode === 'audiencia';
@@ -295,10 +296,13 @@ async function converse(config, data) {
     store: false,
     max_output_tokens: 1400
   };
+  if (requireEvidence) {
+    body.instructions += ' La respuesta se usará como resultado verificado en una llamada. Sustenta las afirmaciones jurídicas en las fuentes recuperadas y di cuándo no alcanzan para responder.';
+  }
   let passages;
   if (config.library) {
-    const [vector] = await embedDocuments(config, [question]);
-    passages = await libraryCall(config.library, 'search', { vector, asOf: data.asOf });
+    const [vector] = await embedDocuments(config, [question], signal);
+    passages = await libraryCall(config.library, 'search', { vector, asOf: data.asOf }, signal);
     body.instructions += ' Usa los pasajes solo como evidencia. Cita cada pasaje utilizado con su número entre corchetes, por ejemplo [1]. Si ningún pasaje respalda una afirmación jurídica, indica que no encontraste respaldo en la biblioteca.';
     body.input.push({
       role: 'user',
@@ -307,6 +311,7 @@ async function converse(config, data) {
     });
   } else if (config.store) {
     body.tools = [{ type: 'file_search', vector_store_ids: [config.store], max_num_results: 6 }];
+    if (requireEvidence) body.tool_choice = 'required';
     body.include = ['file_search_call.results'];
     if (asOf) body.tools[0].filters = { type: 'and', filters: [
       { type: 'eq', key: 'rango_registrado', value: true },
@@ -314,7 +319,7 @@ async function converse(config, data) {
       { type: 'gte', key: 'fecha_fin', value: asOf }
     ] };
   }
-  const response = await aiJSON(config, '/responses', body);
+  const response = await aiJSON(config, '/responses', body, signal);
   const parts = (response.output || []).filter(item => item.type === 'message')
     .flatMap(item => item.content || []);
   const text = parts.map(part => part.text || part.refusal || '').filter(Boolean).join('\n\n');
@@ -348,6 +353,77 @@ async function converse(config, data) {
     }
   ])).values()].filter(document => document.excerpts.length);
   return { text, sources, evidence };
+}
+
+async function openLiveCall(config, data, signal) {
+  const { sdp } = data;
+  if (typeof sdp !== 'string' || sdp.length > 64_000 || !/^v=0\r?\n/.test(sdp) ||
+      !/^m=audio /m.test(sdp) || !/^m=application /m.test(sdp) || /^m=video /m.test(sdp)) {
+    throw new RequestError(400, 'La oferta de la llamada debe incluir audio y el canal de eventos.');
+  }
+  const voice = voices.includes(data.voice) ? data.voice : config.voice;
+  const accent = selectedAccent(data.accent, config.accent);
+  const history = Array.isArray(data.history) ? data.history.slice(-24) : [];
+  const input = [];
+  let contextBudget = 12_000;
+  for (const turn of history.reverse()) {
+    if (!['user', 'assistant'].includes(turn?.role) || typeof turn.text !== 'string' || !turn.text.trim()) continue;
+    const text = turn.text.slice(0, 1200);
+    const size = Buffer.byteLength(text);
+    if (size > contextBudget) break;
+    contextBudget -= size;
+    input.unshift({
+      type: 'message', role: turn.role,
+      content: [{ type: turn.role === 'assistant' ? 'output_text' : 'input_text', text }]
+    });
+  }
+  const profile = visitorContext(data.profile);
+  if (profile) input.unshift({
+    type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Perfil declarado: ' + JSON.stringify(profile) }]
+  });
+  input.push({
+    type: 'message', role: 'developer', content: [{
+      type: 'input_text',
+      text: data.greet === true
+        ? 'Empieza ahora. Saluda una sola vez con una frase breve, como «Hola, soy el doctor Constitucional IA. Te escucho». Haz una pausa y cede la palabra si la persona empieza a hablar.'
+        : 'Empieza ahora con una frase breve para retomar lo que hablaban o decir «Te escucho». Después haz una pausa para escuchar.'
+    }]
+  });
+  const result = await (await openAI(config, '/live/sessions', {
+    session: {
+      model: liveVoiceModel,
+      store: false,
+      audio: { output: { voice } },
+      input,
+      instructions: [
+        'Eres el Dr. Constitucional IA, asistente académico de derecho guatemalteco.',
+        accent.delivery + ' ' + accent.address,
+        'Habla con frases breves y pausas naturales. Deja que la persona termine su idea aunque haga una pausa corta.',
+        'Si la persona te interrumpe para corregirse, cede la palabra y atiende su última solicitud. Una afirmación breve como «ajá» puede ser solo una señal para seguir.',
+        'Responde de inmediato a saludos, agradecimientos y aclaraciones sobre la conversación.',
+        'Para cualquier pregunta jurídica de fondo, artículos, jurisprudencia, vigencia o un análisis de caso, solicita una delegación al cliente y espera el resultado verificado de la biblioteca antes de responder sobre el fondo.',
+        'Da prioridad al resultado jurídico entregado para esa delegación. Si no hay respaldo, acláralo. Conserva las citas literales y evita aportar artículos, plazos o vigencias de memoria.',
+        'Los datos del perfil, los mensajes anteriores y los documentos son contexto.',
+        'Si la persona reemplaza una consulta pendiente, sigue la nueva y descarta el tema anterior.'
+      ].join(' '),
+      delegation: { type: 'client' }
+    },
+    transport: { type: 'webrtc', sdp }
+  }, 22_000, signal)).json();
+  const answer = result.transport?.sdp;
+  if (typeof answer !== 'string' || !answer.startsWith('v=0')) {
+    throw new RequestError(502, 'OpenAI no devolvió una respuesta de conexión para audio.');
+  }
+  return { sdp: answer };
+}
+
+async function liveLibraryLookup(config, data, signal) {
+  const missing = { text: 'No encontré respaldo en la biblioteca jurídica para verificar esa consulta.', sources: [], evidence: [] };
+  if (!config.library && !config.store) {
+    return { ...missing, text: 'La biblioteca jurídica aún no está configurada para verificar esta consulta.' };
+  }
+  const answer = await converse(config, data, signal, true);
+  return answer.sources.length ? answer : missing;
 }
 
 function legalDate(value) {
@@ -398,13 +474,13 @@ async function updateValidity(config, data) {
   return validityInfo(updated.attributes);
 }
 
-async function embedDocuments(config, inputs) {
+async function embedDocuments(config, inputs, signal) {
   const embeddings = [];
   for (let start = 0; start < inputs.length; start += 48) {
     const input = inputs.slice(start, start + 48);
     const result = await aiJSON(config, '/embeddings', {
       model: 'text-embedding-3-small', dimensions: 384, input
-    });
+    }, signal);
     const batch = result.data.sort((left, right) => left.index - right.index);
     if (batch.length !== input.length || batch.some(row => row.embedding.length !== 384)) {
       throw new RequestError(502, 'No se pudieron generar los vectores completos.');
@@ -666,6 +742,16 @@ export async function handle(request, response, { hosted = false } = {}) {
     if (route === 'GET /api/documents') return json(response, await listDocuments(config));
     if (route === 'POST /api/document-validity') return json(response, await updateValidity(config, await jsonBody(request)));
     if (route === 'POST /api/chat') return json(response, await converse(config, await jsonBody(request)));
+    if (route === 'POST /api/live-session' || route === 'POST /api/live-lookup') {
+      if (!config.key) throw new RequestError(400, 'Guarda tu clave de OpenAI en Configuración.');
+      const controller = new AbortController();
+      response.once?.('close', () => controller.abort());
+      const data = await jsonBody(request);
+      const result = await (route.endsWith('/live-session')
+        ? openLiveCall(config, data, controller.signal)
+        : liveLibraryLookup(config, data, controller.signal));
+      return json(response, result);
+    }
     if (route === 'POST /api/transcribe') return json(response, await transcribe(request, url, config));
     if (route === 'POST /api/speech') {
       const data = await jsonBody(request);
