@@ -13,6 +13,8 @@ const previewVoice = byId('preview-voice');
 const previewLabel = byId('preview-voice-label');
 const previewStatus = byId('voice-preview-status');
 const dictate = byId('dictate');
+const dictationPreview = byId('dictation-preview');
+const dictationText = byId('dictation-preview-text');
 const send = composer.querySelector('[type="submit"]');
 
 const storageKey = 'dr-constitucional.history.v1';
@@ -315,12 +317,8 @@ function renderChat() {
 function stopSpeech() {
   speechRequest?.abort();
   speechRequest = undefined;
-  if (playback) {
-    playback.onended = null;
-    playback.stop();
-    playback.disconnect();
-    playback = undefined;
-  }
+  playback?.();
+  playback = undefined;
   avatar.connect();
   stopButton.hidden = true;
   if (previewingVoice) {
@@ -330,14 +328,83 @@ function stopSpeech() {
   }
 }
 
-function unlockAudio(force = false) {
+function unlockAudio(force = false, feedback = force ? previewStatus : status) {
   if (!audioEnabled && !force) return;
   try {
     audioContext ??= new AudioContext();
     if (audioContext.state !== 'running') audioContext.resume().catch(() => {});
   } catch {
-    (force ? previewStatus : status).textContent = 'Este navegador no pudo activar el audio.';
+    feedback.textContent = 'Este navegador no pudo activar el audio.';
   }
+}
+
+async function playSpeechStream(response, signal) {
+  if (!response.body || !response.headers.get('Content-Type')?.startsWith('application/x-dr-pcm')) {
+    throw new Error('La voz llegó en un formato inesperado.');
+  }
+  if (signal.aborted) return;
+  const reader = response.body.getReader();
+  const analyser = audioContext.createAnalyser();
+  analyser.connect(audioContext.destination);
+  avatar.connect(analyser);
+  const sources = new Set();
+  let position = 0;
+  let remainingByte;
+  let done = false;
+
+  function finish() {
+    analyser.disconnect();
+    if (signal.aborted) return;
+    playback = undefined;
+    speechRequest = undefined;
+    avatar.connect();
+    stopButton.hidden = true;
+  }
+
+  playback = () => {
+    void reader.cancel().catch(() => {});
+    for (const source of sources) {
+      source.onended = null;
+      source.stop();
+      source.disconnect();
+    }
+    sources.clear();
+    analyser.disconnect();
+  };
+
+  while (!signal.aborted) {
+    const result = await reader.read();
+    if (result.done || signal.aborted) break;
+    let bytes = result.value;
+    if (remainingByte !== undefined) {
+      const joined = new Uint8Array(bytes.length + 1);
+      joined[0] = remainingByte;
+      joined.set(bytes, 1);
+      bytes = joined;
+    }
+    const count = Math.floor(bytes.length / 2);
+    remainingByte = bytes.length % 2 ? bytes[bytes.length - 1] : undefined;
+    if (!count) continue;
+    const audio = audioContext.createBuffer(1, count, 24000);
+    const samples = audio.getChannelData(0);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    for (let index = 0; index < count; index++) samples[index] = view.getInt16(index * 2, true) / 32768;
+    const source = audioContext.createBufferSource();
+    source.buffer = audio;
+    source.connect(analyser);
+    sources.add(source);
+    source.onended = () => {
+      source.disconnect();
+      sources.delete(source);
+      if (done && !sources.size) finish();
+    };
+    const now = audioContext.currentTime;
+    if (position <= now) position = now + .12;
+    source.start(position);
+    position += audio.duration;
+  }
+  done = true;
+  if (!sources.size && !signal.aborted) finish();
 }
 
 async function speak(text, selection, preset) {
@@ -357,10 +424,11 @@ async function speak(text, selection, preset) {
     const response = await post('speech', {
       text: preset ? undefined : text.replace(/\[\d+\]/g, '').slice(0, 4096),
       preset,
-      alignment: true,
+      stream: !preset,
       voice: (selection || voicePreference).voice,
       accent: (selection || voicePreference).accent
     }, controller.signal);
+    if (!preset) return await playSpeechStream(response, controller.signal);
     const stored = response.headers.get('X-Voice-Storage');
     const { audio, words } = decodeSpeech(await response.arrayBuffer(), response.headers.get('Content-Type'));
     const decoded = await audioContext.decodeAudioData(audio);
@@ -372,7 +440,11 @@ async function speak(text, selection, preset) {
     const track = makeMouthTrack(words, decoded.duration);
     const start = audioContext.currentTime + 0.015;
     avatar.connect(analyser, track && (() => track(audioContext.currentTime - start)));
-    playback = source;
+    playback = () => {
+      source.onended = null;
+      source.stop();
+      source.disconnect();
+    };
     source.onended = () => {
       analyser.disconnect();
       source.disconnect();
@@ -441,6 +513,12 @@ audioToggle.addEventListener('click', () => {
 
 stopButton.addEventListener('click', stopSpeech);
 
+input.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (!send.disabled) composer.requestSubmit(send);
+});
+
 composer.addEventListener('submit', async event => {
   event.preventDefault();
   const question = input.value.trim();
@@ -483,47 +561,189 @@ composer.addEventListener('submit', async event => {
   }
 });
 
+function setDictationState(state) {
+  const labels = { idle: 'Dictar', requesting: 'Abriendo micrófono…', recording: 'Terminar dictado', transcribing: 'Transcribiendo…' };
+  processingDictation = state !== 'idle';
+  dictate.dataset.state = state;
+  dictate.setAttribute('aria-pressed', String(state === 'recording'));
+  dictate.disabled = state === 'requesting' || state === 'transcribing';
+  send.disabled = processingDictation;
+  byId('dictate-label').textContent = labels[state];
+  if (state === 'recording') {
+    delete dictationPreview.dataset.hasText;
+    dictationText.textContent = 'El texto aparecerá aquí mientras hablas.';
+    dictationPreview.hidden = false;
+  } else if (state === 'idle') {
+    dictationPreview.hidden = true;
+  }
+}
+
+function createDictationRecorder(stream) {
+  const Recorder = window.MediaRecorder;
+  const formats = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+  for (const mimeType of formats) {
+    if (!Recorder.isTypeSupported?.(mimeType)) continue;
+    try { return new Recorder(stream, { mimeType, audioBitsPerSecond: 96_000 }); } catch {}
+  }
+  return new Recorder(stream);
+}
+
+function wavBlob(parts, sampleRate) {
+  const size = parts.reduce((total, part) => total + part.byteLength, 0);
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const bytes = new Uint8Array(header);
+  const encoder = new TextEncoder();
+  bytes.set(encoder.encode('RIFF'), 0);
+  view.setUint32(4, 36 + size, true);
+  bytes.set(encoder.encode('WAVEfmt '), 8);
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  bytes.set(encoder.encode('data'), 36);
+  view.setUint32(40, size, true);
+  return new Blob([header, ...parts], { type: 'audio/wav' });
+}
+
+function showDictationPreviewError() {
+  const message = 'La vista previa no está disponible. El texto se transcribirá al terminar el dictado.';
+  if (dictationPreview.dataset.hasText) status.textContent = message;
+  else dictationText.textContent = message;
+}
+
+async function startDictationPreview(stream, isReleased) {
+  const context = audioContext;
+  if (!context?.audioWorklet) throw new Error('AudioWorklet no disponible');
+  await context.audioWorklet.addModule('/dictation-worklet.js');
+  if (isReleased()) return;
+  if (context.state !== 'running') await context.resume();
+  if (isReleased()) return;
+  const node = new AudioWorkletNode(context, 'dictation-samples');
+  const source = context.createMediaStreamSource(stream);
+  const controller = new AbortController();
+  const queue = [];
+  let sending = false;
+
+  function cleanup() {
+    if (controller.signal.aborted) return;
+    controller.abort();
+    node.port.onmessage = null;
+    node.port.close();
+    source.disconnect();
+    node.disconnect();
+  }
+
+  async function updatePreview() {
+    if (sending) return;
+    sending = true;
+    try {
+      while (queue.length && !isReleased()) {
+        const audio = wavBlob(queue.splice(0, 4), context.sampleRate);
+        const result = await api('transcribe?format=wav', {
+          method: 'POST', body: audio, signal: controller.signal
+        });
+        const { text } = await result.json();
+        if (isReleased()) return;
+        const segment = (text || '').trim();
+        if (!segment) continue;
+        const previous = dictationPreview.dataset.hasText ? dictationText.textContent + ' ' : '';
+        dictationText.textContent = previous + segment;
+        dictationPreview.dataset.hasText = 'true';
+        dictationText.scrollTop = dictationText.scrollHeight;
+      }
+    } catch {
+      cleanup();
+      if (!isReleased()) showDictationPreviewError();
+    } finally {
+      sending = false;
+    }
+  }
+
+  node.port.onmessage = ({ data }) => {
+    if (isReleased() || controller.signal.aborted) return;
+    queue.push(data);
+    void updatePreview();
+  };
+  source.connect(node);
+  // The processor leaves its output silent while the destination keeps it active.
+  node.connect(context.destination);
+  return cleanup;
+}
+
+function audioExtension(mime) {
+  const container = mime.split(';')[0].trim().toLowerCase().split('/').at(-1);
+  if (container === 'x-m4a') return 'm4a';
+  return ['mp4', 'm4a', 'webm', 'ogg', 'wav'].includes(container) ? container : undefined;
+}
+
 dictate.addEventListener('click', async () => {
-  if (recorder) {
-    if (recorder.state === 'recording') recorder.stop();
+  if (recorder?.state === 'recording') {
+    dictate.disabled = true;
+    recorder.stop();
     return;
   }
   if (busy || processingDictation) return;
   stopSpeech();
-  processingDictation = true;
-  dictate.disabled = true;
-  send.disabled = true;
+  unlockAudio(true, status);
+  setDictationState('requesting');
+  status.textContent = 'Esperando acceso al micrófono…';
   let stream;
+  let limit;
+  let stopPreview;
+  let released = false;
+  function releaseCapture() {
+    if (released) return;
+    released = true;
+    clearTimeout(limit);
+    stopPreview?.();
+    stream?.getTracks().forEach(track => track.stop());
+  }
+  function reset() {
+    releaseCapture();
+    recorder = undefined;
+    setDictationState('idle');
+  }
   try {
     const config = await getConfig();
-    if (!config.configured) throw new Error(keyRequired);
+    if (!config.configured) throw new Error(config.adminRequired
+      ? 'Entra en Configuración y guarda tu clave de OpenAI para usar el dictado.' : keyRequired);
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      throw new Error('El micrófono requiere un navegador compatible y un origen local seguro.');
+      throw new Error('El dictado requiere un navegador compatible y una conexión HTTPS o localhost.');
     }
-    const formats = [
-      ['webm', 'audio/webm;codecs=opus'], ['mp4', 'audio/mp4'], ['ogg', 'audio/ogg;codecs=opus']
-    ];
-    const format = formats.find(([, type]) => MediaRecorder.isTypeSupported(type));
-    if (!format) throw new Error('El navegador no admite los formatos de grabación disponibles.');
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(stream, { mimeType: format[1], audioBitsPerSecond: 96_000 });
+    const capture = createDictationRecorder(stream);
+    recorder = capture;
     const chunks = [];
-    recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
-    recorder.onstop = async () => {
-      clearTimeout(limit);
-      stream.getTracks().forEach(track => track.stop());
-      dictate.disabled = true;
-      byId('dictate-label').textContent = 'Dictar';
+    const finishRecording = () => {
+      if (capture.state === 'recording') {
+        dictate.disabled = true;
+        capture.stop();
+      }
+    };
+    capture.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+    capture.onerror = () => {
+      capture.onstop = null;
+      reset();
+      status.textContent = 'No se pudo grabar el audio. Revisa el micrófono e intenta de nuevo.';
+    };
+    capture.onstop = async () => {
+      releaseCapture();
+      setDictationState('transcribing');
       status.textContent = 'Transcribiendo…';
       try {
-        const audio = new Blob(chunks, { type: format[1] });
+        if (!chunks.length) throw new Error('No se grabó audio. Intenta hablar unos segundos antes de terminar.');
+        const mime = chunks.find(chunk => chunk.type)?.type || capture.mimeType || '';
+        const format = audioExtension(mime);
+        if (!format) throw new Error('El navegador grabó en un formato de audio no compatible.');
+        const audio = new Blob(chunks, { type: mime });
         if (audio.size > config.audioLimit) {
           throw new Error('La grabación supera el límite de carga. Prueba con un dictado más corto.');
         }
-        const result = await api('transcribe?format=' + format[0], {
-          method: 'POST',
-          body: audio
-        });
+        const result = await api('transcribe?format=' + format, { method: 'POST', body: audio });
         const { text } = await result.json();
         const transcript = (text || '').trim();
         if (!transcript) throw new Error('No se detectó texto en el dictado.');
@@ -531,28 +751,32 @@ dictate.addEventListener('click', async () => {
         status.textContent = 'Dictado listo para revisar y enviar.';
         input.focus();
       } catch (error) {
-        status.textContent = error.message;
+        if (dictationPreview.dataset.hasText) {
+          input.value = [input.value.trim(), dictationText.textContent].filter(Boolean).join(' ').slice(0, input.maxLength);
+          status.textContent = 'Se conservó el texto provisional. Revísalo: puede faltar parte del dictado.';
+          input.focus();
+        } else {
+          status.textContent = error.message;
+        }
       } finally {
-        recorder = undefined;
-        processingDictation = false;
-        dictate.disabled = false;
-        send.disabled = false;
+        reset();
       }
     };
-    recorder.start();
-    const limit = setTimeout(() => {
-      if (recorder?.state === 'recording') recorder.stop();
-    }, 120_000);
-    byId('dictate-label').textContent = 'Terminar dictado';
-    dictate.disabled = false;
-    status.textContent = 'Grabando…';
+    capture.start();
+    limit = setTimeout(finishRecording, 120_000);
+    setDictationState('recording');
+    status.textContent = 'Habla y pulsa Terminar dictado cuando hayas terminado.';
+    void startDictationPreview(stream, () => released).then(cleanup => {
+      if (released) cleanup?.();
+      else stopPreview = cleanup;
+    }).catch(() => {
+      if (!released) showDictationPreviewError();
+    });
   } catch (error) {
-    stream?.getTracks().forEach(track => track.stop());
-    recorder = undefined;
-    processingDictation = false;
-    dictate.disabled = false;
-    send.disabled = false;
-    status.textContent = error.name === 'NotAllowedError' ? 'Permite el uso del micrófono para dictar.' : error.message;
+    reset();
+    status.textContent = error.name === 'NotAllowedError' ? 'Permite el uso del micrófono para dictar.'
+      : error.name === 'NotFoundError' ? 'No se detectó ningún micrófono.'
+      : error.message;
   }
 });
 

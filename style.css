@@ -208,6 +208,39 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 textarea { resize: vertical; }
 .composer-actions { margin-top: .55rem; }
+#audio-toggle[aria-pressed="true"] {
+  border-color: #81dbc3;
+  background: linear-gradient(150deg, #176454, #113f42);
+  color: #e3fff8;
+  box-shadow: var(--inset), 0 0 17px #62d1b436;
+}
+#audio-toggle[aria-pressed="false"] { border-color: #8290a84f; background: #1c2636; color: #bdc8da; }
+#dictate[data-state="recording"] {
+  border-color: #ffb0a9;
+  background: linear-gradient(150deg, #8e363c, #5c2937);
+  color: #fff5f4;
+  box-shadow: var(--inset), 0 0 17px #fa89744f;
+}
+#dictate[data-state="requesting"], #dictate[data-state="transcribing"] { border-color: #8ac5ff; color: #d7edff; }
+.dictation-preview {
+  margin-top: .8rem;
+  padding: .95rem 1.05rem;
+  border: 1px solid #78c7ff60;
+  border-radius: 14px;
+  background: linear-gradient(155deg, #203c60ca, #102643d9);
+  box-shadow: var(--inset), 0 0 22px #649dde24;
+}
+.dictation-preview h2 { margin: 0 0 .45rem; color: #a5d7ff; font-size: .85rem; }
+.dictation-preview p {
+  margin: 0;
+  max-height: 11rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: #c1d6ee;
+  font-size: clamp(1.03rem, 2.1vw, 1.32rem);
+  line-height: 1.55;
+}
+.dictation-preview[data-has-text] p { color: #f4fbff; font-weight: 600; text-shadow: 0 0 13px #82caff52; }
 .query-options, #validity-form, .source-evidence { margin-top: .8rem; padding: .85rem; border: 1px solid var(--line); border-radius: 12px; }
 .query-options summary, .source-evidence summary { cursor: pointer; color: var(--light); }
 .query-options .field-grid { margin-top: .8rem; }

@@ -54,7 +54,7 @@ const openLiveSocket = key => new WebSocket('wss://api.openai.com/v1/live/sessio
   maxPayload: 1_048_576
 });
 
-export async function liveSpeech(key, { voice, instructions, text, signal }, connect = openLiveSocket) {
+export async function liveSpeech(key, { voice, instructions, text, signal, onAudio }, connect = openLiveSocket) {
   if (signal?.aborted) throw signal.reason;
   const pcm = await new Promise((resolve, reject) => {
     const socket = connect(key);
@@ -81,7 +81,7 @@ export async function liveSpeech(key, { voice, instructions, text, signal }, con
       signal?.removeEventListener('abort', onAbort);
       socket.close();
       if (error) reject(error);
-      else resolve(Buffer.concat(frames).subarray(0, lastVoiceByte + sampleRate * 2 * 0.25));
+      else resolve(onAudio ? undefined : Buffer.concat(frames).subarray(0, lastVoiceByte + sampleRate * 2 * 0.25));
     }
 
     function onAbort() { finish(signal.reason || new LiveVoiceError('Lectura cancelada.')); }
@@ -138,7 +138,8 @@ export async function liveSpeech(key, { voice, instructions, text, signal }, con
         if (!spoken && !lastVoiceAt) return;
         length += frame.length;
         if (length > maxAudioBytes) return finish(new LiveVoiceError('La lectura supera la duración permitida.'));
-        frames.push(frame);
+        if (onAudio) onAudio(frame);
+        else frames.push(frame);
         if (spoken) {
           lastVoiceAt = Date.now();
           lastVoiceByte = length;
@@ -153,5 +154,5 @@ export async function liveSpeech(key, { voice, instructions, text, signal }, con
     socket.on('close', () => finish(new LiveVoiceError('La sesión de voz se cerró antes de completar la lectura.')));
     if (signal?.aborted) onAbort();
   });
-  return pcmToMp3(pcm);
+  if (pcm) return pcmToMp3(pcm);
 }

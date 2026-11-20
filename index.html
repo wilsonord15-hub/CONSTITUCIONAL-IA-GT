@@ -91,6 +91,10 @@
       <form id="composer" hidden>
         <label class="sr-only" for="question">Tu consulta</label>
         <textarea id="question" rows="2" maxlength="8000" placeholder="Escribe tu consulta…"></textarea>
+        <section id="dictation-preview" class="dictation-preview" aria-labelledby="dictation-preview-heading" hidden>
+          <h2 id="dictation-preview-heading"><span class="icon" aria-hidden="true">◉</span> Dictado en curso</h2>
+          <p id="dictation-preview-text">El texto aparecerá aquí mientras hablas.</p>
+        </section>
         <details class="query-options">
           <summary>Modo y fecha de consulta</summary>
           <div class="field-grid">
@@ -105,7 +109,7 @@
           </div>
         </details>
         <div class="composer-actions flex items-center justify-between gap-3 compact:action-pair">
-          <button type="button" id="dictate"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
+          <button type="button" id="dictate" data-state="idle" aria-pressed="false"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
           <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
         </div>
       </form>
