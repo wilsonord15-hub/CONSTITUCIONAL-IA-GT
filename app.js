@@ -16,7 +16,9 @@ const dictate = byId('dictate');
 const dictationPreview = byId('dictation-preview');
 const dictationText = byId('dictation-preview-text');
 const send = composer.querySelector('[type="submit"]');
-
+const switchToVoice = byId('switch-to-voice');
+const switchToText = byId('switch-to-text');
+const finishVoiceTurn = byId('finish-voice-turn');
 const historyList = byId('history');
 const historyRecent = byId('history-recent');
 const historyArchived = byId('history-archived');
@@ -55,6 +57,7 @@ let speechRequest;
 let previewingVoice = false;
 let recorder;
 let processingDictation = false;
+let voiceSession;
 let sharedText = '';
 let configRequest;
 let voicePreference = {};
@@ -81,6 +84,7 @@ const profileFields = {
 };
 
 function openProfile(firstVisit) {
+  leaveVoiceMode();
   byId('profile-title').textContent = firstVisit ? 'Personaliza tu consulta' : 'Mi perfil';
   byId('skip-profile').hidden = !firstVisit;
   byId('cancel-profile').hidden = firstVisit;
@@ -319,6 +323,7 @@ function setArchived(entry, archived) {
   if (!persist(next, historyStatus)) return false;
   history = next;
   if (chat === entry) {
+    leaveVoiceMode();
     stopSpeech();
     status.textContent = '';
     chat = updated;
@@ -366,6 +371,7 @@ function renderHistory() {
     const title = name.length > 120 ? name.slice(0, 119) + '…' : name;
     const item = button('', () => {
       if (!canManageHistory()) return;
+      leaveVoiceMode();
       stopSpeech();
       if (chat !== entry) input.value = '';
       chat = entry;
@@ -422,6 +428,7 @@ function renderChat() {
   const archived = chat?.archived === true;
   byId('welcome').hidden = Boolean(chat) || editing;
   composer.hidden = !chat || editing || archived;
+  renderInputMode();
   byId('archived-conversation').hidden = editing || !archived;
   messages.hidden = editing;
   messages.replaceChildren(...(chat?.turns || []).map(buildMessage));
@@ -453,7 +460,7 @@ function unlockAudio(force = false, feedback = force ? previewStatus : status) {
   }
 }
 
-async function playSpeechStream(response, signal) {
+async function playSpeechStream(response, signal, onEnd) {
   if (!response.body || !response.headers.get('Content-Type')?.startsWith('application/x-dr-pcm')) {
     throw new Error('La voz llegó en un formato inesperado.');
   }
@@ -474,6 +481,7 @@ async function playSpeechStream(response, signal) {
     speechRequest = undefined;
     avatar.connect();
     stopButton.hidden = true;
+    onEnd?.();
   }
 
   playback = () => {
@@ -522,7 +530,7 @@ async function playSpeechStream(response, signal) {
   if (!sources.size && !signal.aborted) finish();
 }
 
-async function speak(text, preset) {
+async function speak(text, preset, onEnd, onError) {
   if (!audioEnabled || !audioContext) return;
   stopSpeech();
   const controller = new AbortController();
@@ -536,7 +544,7 @@ async function speak(text, preset) {
       voice: voicePreference.voice,
       accent: voicePreference.accent
     }, controller.signal);
-    if (!preset) return await playSpeechStream(response, controller.signal);
+    if (!preset) return await playSpeechStream(response, controller.signal, onEnd);
     const { audio, words } = decodeSpeech(await response.arrayBuffer(), response.headers.get('Content-Type'));
     const decoded = await audioContext.decodeAudioData(audio);
     if (controller.signal.aborted) return;
@@ -559,6 +567,7 @@ async function speak(text, preset) {
       speechRequest = undefined;
       avatar.connect();
       stopButton.hidden = true;
+      onEnd?.();
     };
     controller.signal.addEventListener('abort', () => analyser.disconnect(), { once: true });
     source.start(start);
@@ -566,35 +575,34 @@ async function speak(text, preset) {
     if (controller.signal.aborted) return;
     stopSpeech();
     status.textContent = error.message;
+    onError?.();
   }
 }
 
-byId('start').addEventListener('click', async () => {
-  if (chat) return;
-  unlockAudio();
+function startConversation(byVoice) {
   status.textContent = '';
   chat = { id: crypto.randomUUID(), turns: [] };
-  const startedChat = chat;
   const hello = visitorProfile?.name ? '¡Hola, ' + visitorProfile.name + '!' : '¡Hola!';
   const greeting = hello + greetingContinuation;
   renderChat();
   appendTurn({ role: 'assistant', text: greeting, greeting: true });
-  input.focus();
-  try {
-    const config = await getConfig();
-    if (config.configured && chat === startedChat && chat.turns.length === 1 && !busy && !recorder && !processingDictation) {
-      void speak(undefined, 'saludo');
-    }
-    if (!config.configured) status.textContent = config.adminRequired
-      ? 'La conversación con IA para visitantes todavía no está habilitada.'
-      : keyRequired;
-  } catch (error) {
-    status.textContent = error.message;
+  if (byVoice) {
+    void enterVoiceMode(true);
+  } else {
+    setAudioEnabled(false);
+    input.focus();
   }
-});
+}
+
+byId('start').addEventListener('click', () => startConversation(true));
+byId('start-text').addEventListener('click', () => startConversation(false));
+switchToVoice.addEventListener('click', () => void enterVoiceMode());
+switchToText.addEventListener('click', () => leaveVoiceMode({ focus: true, clearStatus: true }));
+finishVoiceTurn.addEventListener('click', () => voiceSession?.finishTurn?.());
 
 byId('new-chat').addEventListener('click', () => {
   if (busy || processingDictation || recorder) return;
+  leaveVoiceMode();
   stopSpeech();
   chat = undefined;
   status.textContent = '';
@@ -620,6 +628,7 @@ byId('delete-conversation-form').addEventListener('submit', event => {
   history = next;
   deleteConversation.close();
   if (chat === entry) {
+    leaveVoiceMode();
     stopSpeech();
     chat = undefined;
     input.value = '';
@@ -632,15 +641,24 @@ byId('delete-conversation-form').addEventListener('submit', event => {
   currentHistoryFilter().focus();
 });
 
-audioToggle.addEventListener('click', () => {
-  audioEnabled = !audioEnabled;
+function setAudioEnabled(enabled) {
+  audioEnabled = enabled;
   byId('audio-label').textContent = audioEnabled ? 'Voz activada' : 'Voz desactivada';
   audioToggle.setAttribute('aria-pressed', String(audioEnabled));
   if (!audioEnabled) stopSpeech();
   else unlockAudio();
+}
+
+audioToggle.addEventListener('click', () => {
+  if (voiceSession) leaveVoiceMode({ focus: true, clearStatus: true });
+  else setAudioEnabled(!audioEnabled);
 });
 
-stopButton.addEventListener('click', stopSpeech);
+stopButton.addEventListener('click', () => {
+  const session = voiceSession;
+  stopSpeech();
+  if (session) void listenForTurn(session);
+});
 
 input.addEventListener('keydown', event => {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
@@ -648,15 +666,21 @@ input.addEventListener('keydown', event => {
   if (!send.disabled) composer.requestSubmit(send);
 });
 
-composer.addEventListener('submit', async event => {
+composer.addEventListener('submit', event => {
   event.preventDefault();
   const question = input.value.trim();
-  if (!chat || chat.archived === true || !question || busy || recorder || processingDictation) return;
+  if (voiceSession || !question) return;
+  void submitQuestion(question);
+});
+
+async function submitQuestion(question, session) {
+  if (!chat || chat.archived === true || busy || recorder || processingDictation) return;
   unlockAudio();
   stopSpeech();
   busy = true;
   send.disabled = true;
   dictate.disabled = true;
+  renderInputMode();
   const context = chat.turns.filter(turn => !turn.greeting && !turn.pending).slice(-20);
   const turn = { role: 'user', text: question, pending: true };
   const previous = chat.turns.at(-1);
@@ -665,7 +689,7 @@ composer.addEventListener('submit', async event => {
     messages.lastElementChild?.remove();
   }
   appendTurn(turn);
-  input.value = '';
+  if (!session) input.value = '';
   status.textContent = 'Preparando la respuesta…';
   try {
     const answer = await (await post('chat', {
@@ -679,16 +703,19 @@ composer.addEventListener('submit', async event => {
     delete turn.pending;
     status.textContent = '';
     appendTurn({ role: 'assistant', ...answer });
-    void speak(answer.text);
+    if (session === voiceSession && session) playVoiceTurn(session, answer.text);
+    else if (!session) void speak(answer.text);
   } catch (error) {
     if (!input.value) input.value = question;
     status.textContent = error.message;
+    if (session && session === voiceSession) leaveVoiceMode({ focus: true });
   } finally {
     busy = false;
     send.disabled = false;
     dictate.disabled = false;
+    renderInputMode();
   }
-});
+}
 
 function setDictationState(state) {
   const labels = { idle: 'Dictar', requesting: 'Abriendo micrófono…', recording: 'Terminar dictado', transcribing: 'Transcribiendo…' };
@@ -697,6 +724,7 @@ function setDictationState(state) {
   dictate.setAttribute('aria-pressed', String(state === 'recording'));
   dictate.disabled = state === 'requesting' || state === 'transcribing';
   send.disabled = processingDictation;
+  renderInputMode();
   byId('dictate-label').textContent = labels[state];
   if (state === 'recording') {
     delete dictationPreview.dataset.hasText;
@@ -809,13 +837,192 @@ function audioExtension(mime) {
   return ['mp4', 'm4a', 'webm', 'ogg', 'wav'].includes(container) ? container : undefined;
 }
 
+async function transcribeRecording(chunks, mime, audioLimit, signal) {
+  if (!chunks.length) throw new Error('No se grabó audio. Intenta hablar unos segundos.');
+  const format = audioExtension(mime);
+  if (!format) throw new Error('El navegador grabó en un formato de audio no compatible.');
+  const audio = new Blob(chunks, { type: mime });
+  if (audio.size > audioLimit) throw new Error('La grabación supera el límite de carga. Prueba con una consulta más corta.');
+  const result = await api('transcribe?format=' + format, { method: 'POST', body: audio, signal });
+  const { text } = await result.json();
+  if (!text?.trim()) throw new Error('No se detectó lo que dijiste.');
+  return text.trim();
+}
+
+function renderInputMode() {
+  input.hidden = Boolean(voiceSession);
+  byId('text-actions').hidden = Boolean(voiceSession);
+  byId('voice-actions').hidden = !voiceSession;
+  switchToVoice.disabled = busy || processingDictation;
+  finishVoiceTurn.disabled = !voiceSession?.finishTurn;
+}
+
+function leaveVoiceMode({ focus = false, clearStatus = false } = {}) {
+  if (!voiceSession) return;
+  const session = voiceSession;
+  voiceSession = undefined;
+  session.controller.abort();
+  setAudioEnabled(false);
+  renderInputMode();
+  if (clearStatus && !busy) status.textContent = '';
+  if (focus) input.focus();
+}
+
+function voiceError(session, error) {
+  if (voiceSession !== session) return;
+  leaveVoiceMode({ focus: true });
+  status.textContent = error.name === 'NotAllowedError' ? 'Permite el uso del micrófono para conversar.'
+    : error.name === 'NotFoundError' ? 'No se detectó ningún micrófono.'
+    : error.message;
+}
+
+function playVoiceTurn(session, text, preset) {
+  status.textContent = 'El Dr. está respondiendo…';
+  void speak(text, preset,
+    () => void listenForTurn(session),
+    () => leaveVoiceMode({ focus: true }));
+}
+
+async function enterVoiceMode(greet = false) {
+  if (voiceSession || !chat || chat.archived || busy || processingDictation) return;
+  const session = { controller: new AbortController() };
+  voiceSession = session;
+  setAudioEnabled(true);
+  stopSpeech();
+  renderInputMode();
+  switchToText.focus();
+  status.textContent = 'Preparando la conversación por voz…';
+  try {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !audioContext) {
+      throw new Error('La conversación por voz requiere un navegador compatible y HTTPS o localhost.');
+    }
+    const config = await getConfig();
+    if (voiceSession !== session) return;
+    if (!config.configured) throw new Error(config.adminRequired
+      ? 'La conversación con IA para visitantes todavía no está habilitada.' : keyRequired);
+    session.audioLimit = config.audioLimit;
+    if (greet) playVoiceTurn(session, undefined, 'saludo');
+    else void listenForTurn(session);
+  } catch (error) {
+    voiceError(session, error);
+  }
+}
+
+async function listenForTurn(session) {
+  if (voiceSession !== session || session.listening) return;
+  const { signal } = session.controller;
+  session.listening = true;
+  status.textContent = 'Abriendo el micrófono…';
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    if (signal.aborted) return;
+    const audio = await recordVoiceTurn(stream, session);
+    if (signal.aborted) return;
+    status.textContent = 'Transcribiendo tu consulta…';
+    const question = await transcribeRecording(audio.chunks, audio.mime, session.audioLimit, signal);
+    if (signal.aborted) return;
+    session.listening = false;
+    await submitQuestion(question.slice(0, input.maxLength), session);
+  } catch (error) {
+    voiceError(session, error);
+  } finally {
+    stream?.getTracks().forEach(track => track.stop());
+  }
+}
+
+function recordVoiceTurn(stream, session) {
+  const { signal } = session.controller;
+  const capture = createDictationRecorder(stream);
+  const source = audioContext.createMediaStreamSource(stream);
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  const chunks = [];
+  const start = performance.now();
+  let lastSpeech = start;
+  let voicedFrames = 0;
+  let timer;
+
+  return new Promise((resolve, reject) => {
+    function release() {
+      clearInterval(timer);
+      signal.removeEventListener('abort', cancel);
+      source.disconnect();
+      stream.getTracks().forEach(track => track.stop());
+      session.finishTurn = undefined;
+      renderInputMode();
+    }
+
+    function finish() {
+      if (capture.state !== 'recording') return;
+      clearInterval(timer);
+      session.finishTurn = undefined;
+      renderInputMode();
+      capture.stop();
+    }
+
+    function cancel() {
+      capture.onstop = null;
+      finish();
+      release();
+      reject(signal.reason);
+    }
+
+    capture.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+    capture.onerror = () => {
+      capture.onstop = null;
+      release();
+      reject(new Error('No se pudo grabar tu consulta. Revisa el micrófono e intenta de nuevo.'));
+    };
+    capture.onstop = () => {
+      release();
+      if (voicedFrames < 3) {
+        reject(new Error('No te escuché. Pulsa Hablar con el Dr. para volver a intentar.'));
+        return;
+      }
+      resolve({ chunks, mime: chunks.find(chunk => chunk.type)?.type || capture.mimeType || '' });
+    };
+    try {
+      capture.start();
+    } catch (error) {
+      release();
+      reject(error);
+      return;
+    }
+    signal.addEventListener('abort', cancel, { once: true });
+    status.textContent = 'Te escucho…';
+    timer = setInterval(() => {
+      analyser.getFloatTimeDomainData(samples);
+      const power = samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length;
+      const now = performance.now();
+      if (power > 0.00032) {
+        lastSpeech = now;
+        if (++voicedFrames === 3) {
+          session.finishTurn = finish;
+          renderInputMode();
+        }
+      }
+      const heardSpeech = voicedFrames >= 3;
+      const finishedSpeaking = heardSpeech && now - lastSpeech >= 1_200;
+      const turnTimedOut = now - start >= (heardSpeech ? 120_000 : 30_000);
+      if (finishedSpeaking || turnTimedOut) finish();
+    }, 50);
+  });
+}
+
+window.addEventListener('pagehide', () => leaveVoiceMode());
+
 dictate.addEventListener('click', async () => {
   if (recorder?.state === 'recording') {
     dictate.disabled = true;
     recorder.stop();
     return;
   }
-  if (busy || processingDictation) return;
+  if (voiceSession || busy || processingDictation) return;
   stopSpeech();
   unlockAudio(true, status);
   setDictationState('requesting');
@@ -864,18 +1071,8 @@ dictate.addEventListener('click', async () => {
       setDictationState('transcribing');
       status.textContent = 'Transcribiendo…';
       try {
-        if (!chunks.length) throw new Error('No se grabó audio. Intenta hablar unos segundos antes de terminar.');
         const mime = chunks.find(chunk => chunk.type)?.type || capture.mimeType || '';
-        const format = audioExtension(mime);
-        if (!format) throw new Error('El navegador grabó en un formato de audio no compatible.');
-        const audio = new Blob(chunks, { type: mime });
-        if (audio.size > config.audioLimit) {
-          throw new Error('La grabación supera el límite de carga. Prueba con un dictado más corto.');
-        }
-        const result = await api('transcribe?format=' + format, { method: 'POST', body: audio });
-        const { text } = await result.json();
-        const transcript = (text || '').trim();
-        if (!transcript) throw new Error('No se detectó texto en el dictado.');
+        const transcript = await transcribeRecording(chunks, mime, config.audioLimit);
         input.value = [input.value.trim(), transcript].filter(Boolean).join(' ').slice(0, input.maxLength);
         status.textContent = 'Dictado listo para revisar y enviar.';
         input.focus();
@@ -956,6 +1153,7 @@ async function loadSettingsAccess() {
 }
 
 function openSettings(section) {
+  leaveVoiceMode();
   settingsSection = section;
   if (previewingVoice) stopSpeech();
   library.hidden = true;

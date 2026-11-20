@@ -94,7 +94,10 @@
       <div id="welcome">
         <span class="hero-seal" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
         <h2>¿Qué quieres consultar?</h2>
-        <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
+        <div class="flex flex-wrap justify-center gap-3">
+          <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
+          <button id="start-text" type="button">Escribir</button>
+        </div>
       </div>
       <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
       <div id="archived-conversation" hidden>
@@ -121,9 +124,14 @@
             </div>
           </div>
         </details>
-        <div class="composer-actions flex items-center justify-between gap-3 compact:action-pair">
+        <div id="text-actions" class="composer-actions flex flex-wrap items-center justify-between gap-3">
           <button type="button" id="dictate" data-state="idle" aria-pressed="false"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
+          <button type="button" id="switch-to-voice">Hablar con el Dr.</button>
           <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
+        </div>
+        <div id="voice-actions" class="composer-actions flex flex-wrap items-center justify-between gap-3" hidden>
+          <button type="button" id="finish-voice-turn" disabled>Enviar lo que dije</button>
+          <button type="button" id="switch-to-text">Cambiar a escritura</button>
         </div>
       </form>
       <p id="status" role="status"></p>
