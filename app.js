@@ -306,6 +306,19 @@ function outlineIcon(name) {
   return icon;
 }
 
+function buttonIcon(name) {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const icon = document.createElementNS(namespace, 'svg');
+  icon.setAttribute('class', 'button-icon');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.setAttribute('focusable', 'false');
+  const symbol = document.createElementNS(namespace, 'use');
+  symbol.setAttribute('href', '#ui-' + name);
+  icon.append(symbol);
+  return icon;
+}
+
 function conversationName(entry) {
   const question = firstQuestion(entry).text;
   return (plainMessage(question) || question).replace(/\s+/g, ' ').trim();
@@ -988,8 +1001,12 @@ function renderInputMode() {
   audioToggle.hidden = active;
   switchToVoice.disabled = busy || processingDictation;
   muteCall.disabled = voiceSession?.state !== 'connected';
-  muteCall.setAttribute('aria-pressed', String(Boolean(voiceSession?.muted)));
-  muteCall.textContent = voiceSession?.muted ? 'Activar micrófono' : 'Silenciar micrófono';
+  const muted = Boolean(voiceSession?.muted);
+  const micLabel = muted ? 'Activar micrófono' : 'Silenciar micrófono';
+  muteCall.setAttribute('aria-pressed', String(muted));
+  muteCall.setAttribute('aria-label', micLabel);
+  muteCall.title = micLabel;
+  byId('mute-call-icon').setAttribute('href', muted ? '#ui-mic-off' : '#ui-mic');
   activateCallAudio.hidden = !voiceSession?.playBlocked;
 }
 
@@ -1544,6 +1561,7 @@ function renderDocuments(files) {
         .filter(Boolean).join(' · ');
       const edit = button('Editar vigencia', () => editValidity(file));
       edit.setAttribute('aria-label', 'Editar vigencia de ' + file.name);
+      edit.prepend(buttonIcon('pencil'), ' ');
       actions.append(metadata, edit);
       row.append(actions);
     } else if (['failed', 'cancelled'].includes(file.status)) {
@@ -1672,12 +1690,13 @@ function renderSelection() {
     const row = document.createElement('li');
     const name = document.createElement('span');
     iconLabel(name, '▤', file.name);
-    const remove = button('×', () => {
+    const remove = button('', () => {
       selectedFiles = selectedFiles.filter(selected => selected !== file);
       renderSelection();
       choosePdf.focus();
     });
     remove.setAttribute('aria-label', 'Quitar ' + file.name);
+    remove.append(buttonIcon('close'));
     remove.disabled = uploading;
     row.append(name, remove);
     return row;
@@ -1690,7 +1709,7 @@ function updateUploadButton() {
   const count = selectedFiles.length;
   submitDocuments.hidden = !count;
   submitDocuments.disabled = uploading || refreshing || !count;
-  submitDocuments.textContent = uploading ? 'Subiendo archivos…'
+  byId('submit-documents-label').textContent = uploading ? 'Subiendo archivos…'
     : count === 1 ? 'Subir 1 archivo' : `Subir ${count} archivos`;
 }
 

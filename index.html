@@ -14,6 +14,25 @@
   <script type="module" src="/footer-shader.js"></script>
 </head>
 <body>
+  <svg class="ui-icon-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <symbol id="ui-recent" viewBox="0 0 24 24"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+    <symbol id="ui-folder-archive" viewBox="0 0 24 24"><path d="M4 8h16v12H4zM3 4h18v4H3zM9 12h6"/></symbol>
+    <symbol id="ui-skip" viewBox="0 0 24 24"><path d="m8 6 6 6-6 6m9-12v12"/></symbol>
+    <symbol id="ui-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="ui-pencil" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l4-.8L20 7a2.8 2.8 0 0 0-4-4L4.8 15z"/></symbol>
+    <symbol id="ui-restore" viewBox="0 0 24 24"><path d="M4 5v6h6M4.8 10a8 8 0 1 1 .9 8"/></symbol>
+    <symbol id="ui-mic" viewBox="0 0 24 24"><path d="M9 5a3 3 0 1 1 6 0v6a3 3 0 1 1-6 0V5Zm-3 5v1a6 6 0 0 0 12 0v-1m-6 7v4m-3 0h6"/></symbol>
+    <symbol id="ui-mic-off" viewBox="0 0 24 24"><path d="M3 3l18 18M9 9v2a3 3 0 0 0 4.2 2.8M9 5a3 3 0 1 1 6 0v5m3 0v1c0 1-.25 2-.74 2.8M6 10v1a6 6 0 0 0 9 5.2M12 17v4m-3 0h6"/></symbol>
+    <symbol id="ui-speaker" viewBox="0 0 24 24"><path d="M3 9h4l4-4v14l-4-4H3zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></symbol>
+    <symbol id="ui-envelope" viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></symbol>
+    <symbol id="ui-hangup" viewBox="0 0 24 24"><path d="M3.1 15.1a2.2 2.2 0 0 1 .17-3.2 13.4 13.4 0 0 1 17.46 0 2.2 2.2 0 0 1 .17 3.2l-1 1a1.4 1.4 0 0 1-1.8.17l-2.4-1.65a1.25 1.25 0 0 1-.47-1.47l.3-.9a8.7 8.7 0 0 0-7 0l.3.9a1.25 1.25 0 0 1-.48 1.47l-2.4 1.65a1.4 1.4 0 0 1-1.8-.17z"/></symbol>
+    <symbol id="ui-stop" viewBox="0 0 24 24"><path d="M7 7h10v10H7z"/></symbol>
+    <symbol id="ui-folder" viewBox="0 0 24 24"><path d="M3 19V5h7l2 3h9v11H3Z"/></symbol>
+    <symbol id="ui-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></symbol>
+    <symbol id="ui-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="ui-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 10v7m4-7v7"/></symbol>
+    <symbol id="ui-whatsapp" viewBox="0 0 24 24"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.7 7.4L4 20l.9-3.7a8.5 8.5 0 1 1 15.6-4.5ZM9 8.4c.6-.5 1.1.5 1.4 1.1l-.8.9a6 6 0 0 0 3.8 3.3l.8-.9c.6.2 1.9.6 1.7 1.3-.2 1-1.2 1.6-2.2 1.4-3.5-.8-6-3.6-5.6-5.8.1-.6.4-1 .9-1.3Z"/></symbol>
+  </svg>
   <div class="nebula" aria-hidden="true"></div>
   <header class="top">
     <div class="brand">
@@ -30,11 +49,11 @@
     <aside class="history" aria-labelledby="history-title">
       <div class="history-title">
         <h2 id="history-title">Historial</h2>
-        <button id="new-chat" type="button" aria-label="Nueva conversación" title="Nueva conversación">+</button>
+        <button id="new-chat" type="button" aria-label="Nueva conversación" title="Nueva conversación"><span class="icon" aria-hidden="true">+</span></button>
       </div>
       <div class="history-filters" role="group" aria-label="Ver conversaciones">
-        <button id="history-recent" type="button" aria-pressed="true" aria-controls="history">Recientes</button>
-        <button id="history-archived" type="button" aria-pressed="false" aria-controls="history">Archivados</button>
+        <button id="history-recent" type="button" aria-pressed="true" aria-controls="history"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-recent"></use></svg> Recientes</button>
+        <button id="history-archived" type="button" aria-pressed="false" aria-controls="history"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-folder-archive"></use></svg> Archivados</button>
       </div>
       <ul id="history" role="list"></ul>
       <p id="history-status" role="status"></p>
@@ -43,8 +62,8 @@
       <div class="chat-heading">
         <div><p id="visitor-greeting" hidden></p><p>Derecho guatemalteco</p><h1 id="chat-title" tabindex="-1">Consulta jurídica</h1></div>
         <div class="chat-voice-controls">
-          <button id="audio-toggle" type="button" aria-pressed="true"><span class="icon" aria-hidden="true">◖))</span> <span id="audio-label">Voz activada</span></button>
-          <button id="stop-audio" type="button" hidden><span class="icon" aria-hidden="true">■</span> <span id="stop-audio-label">Interrumpir y hablar</span></button>
+          <button id="audio-toggle" type="button" aria-pressed="true"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-speaker"></use></svg> <span id="audio-label">Voz activada</span></button>
+          <button id="stop-audio" type="button" hidden><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-stop"></use></svg> <span id="stop-audio-label">Interrumpir y hablar</span></button>
         </div>
       </div>
       <section id="profile-dialog" class="profile-editor glass-filter-card" hidden aria-labelledby="profile-heading" aria-describedby="profile-intro">
@@ -88,8 +107,8 @@
           <p class="profile-disclosure muted"><span class="icon" aria-hidden="true">◎</span> Tu perfil se guarda en este navegador y acompaña tus consultas a OpenAI. Evita incluir datos sensibles.</p>
           <p id="profile-status" role="status"></p>
           <div class="profile-actions flex flex-wrap justify-between gap-3 compact:action-pair">
-            <button type="button" id="skip-profile">Omitir por ahora</button>
-            <button type="button" id="cancel-profile" hidden>Cancelar</button>
+            <button type="button" id="skip-profile"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-skip"></use></svg> Omitir por ahora</button>
+            <button type="button" id="cancel-profile" hidden><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"></use></svg> Cancelar</button>
             <button class="primary" type="submit"><span class="icon" aria-hidden="true">✓</span> Guardar perfil</button>
           </div>
         </form>
@@ -98,14 +117,14 @@
         <span class="hero-seal" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
         <h2>¿Qué quieres consultar?</h2>
         <div class="flex flex-wrap justify-center gap-3">
-          <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
-          <button id="start-text" type="button">Escribir</button>
+          <button id="start" class="primary"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-mic"></use></svg> Conversar</button>
+          <button id="start-text" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-pencil"></use></svg> Escribir</button>
         </div>
       </div>
       <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
       <div id="archived-conversation" hidden>
         <p>Conversación archivada</p>
-        <button id="restore-conversation" type="button">Restaurar</button>
+        <button id="restore-conversation" type="button"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-restore"></use></svg> Restaurar</button>
       </div>
       <form id="composer" hidden>
         <label class="sr-only" for="question">Tu consulta</label>
@@ -127,15 +146,15 @@
             </div>
           </div>
         </details>
-        <div id="text-actions" class="composer-actions flex flex-wrap items-center justify-between gap-3">
-          <button type="button" id="dictate" data-state="idle" aria-pressed="false"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
-          <button type="button" id="switch-to-voice">Hablar con el Dr.</button>
-          <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
+        <div id="text-actions" class="composer-actions">
+          <button type="button" id="dictate" data-state="idle" aria-pressed="false"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-mic"></use></svg> <span id="dictate-label">Dictar</span></button>
+          <button type="button" id="switch-to-voice"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-mic"></use></svg> <span>Hablar con el Dr.</span></button>
+          <button type="submit" class="primary"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-envelope"></use></svg> <span>Enviar</span></button>
         </div>
         <div id="voice-actions" class="composer-actions flex flex-wrap items-center justify-between gap-3" hidden>
-          <button type="button" id="mute-call" aria-pressed="false" disabled>Silenciar micrófono</button>
-          <button type="button" id="activate-call-audio" hidden>Activar audio</button>
-          <button type="button" id="switch-to-text" aria-label="Colgar y volver a escribir">Colgar</button>
+          <button type="button" id="mute-call" aria-label="Silenciar micrófono" title="Silenciar micrófono" aria-pressed="false" disabled><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use id="mute-call-icon" href="#ui-mic"></use></svg></button>
+          <button type="button" id="activate-call-audio" hidden><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-speaker"></use></svg> Activar audio</button>
+          <button type="button" id="switch-to-text" aria-label="Colgar y volver a escribir"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-hangup"></use></svg> Colgar</button>
         </div>
       </form>
       <audio id="live-audio" autoplay playsinline hidden></audio>
@@ -167,7 +186,7 @@
     </div>
   </footer>
   <dialog id="settings" aria-labelledby="settings-heading">
-    <div class="dialog-title"><h2 id="settings-heading"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+    <div class="dialog-title"><h2 id="settings-heading"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</h2><button type="button" data-close aria-label="Cerrar"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"></use></svg></button></div>
     <div id="settings-nav" class="settings-nav action-pair gap-3 compact:gap-2" aria-label="Secciones de configuración" hidden>
       <button type="button" id="open-preferences" aria-pressed="true"><span class="icon" aria-hidden="true">⚿</span> Preferencias</button>
       <button type="button" id="open-library" aria-pressed="false"><span class="icon" aria-hidden="true">§</span> Biblioteca jurídica</button>
@@ -215,10 +234,10 @@
             <p class="muted" id="document-note"></p>
           </div>
           <input id="document" type="file" accept=".pdf,.docx,.txt,.md" multiple hidden>
-          <button class="primary" type="button" id="choose-pdf">Elegir archivos</button>
+          <button class="primary" type="button" id="choose-pdf"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-folder"></use></svg> Elegir archivos</button>
         </div>
         <ul id="selected-documents" aria-label="Archivos seleccionados"></ul>
-        <button id="submit-documents" class="primary" type="submit" hidden disabled>Subir documentos</button>
+        <button id="submit-documents" class="primary" type="submit" hidden disabled><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-upload"></use></svg> <span id="submit-documents-label">Subir documentos</span></button>
         <p id="upload-status" role="status"></p>
       </form>
       <div class="section-heading library-list-heading">
@@ -229,7 +248,7 @@
       <form id="validity-form" hidden>
         <div class="section-heading">
           <h3 id="validity-heading"></h3>
-          <button id="close-validity" type="button" aria-label="Cerrar editor de vigencia">×</button>
+          <button id="close-validity" type="button" aria-label="Cerrar editor de vigencia"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"></use></svg></button>
         </div>
         <div class="field-grid">
           <div class="field">
@@ -248,7 +267,7 @@
         </div>
         <p class="muted">Para filtrar por fecha, registra el inicio y el fin. Si la norma sigue vigente, basta con el inicio.</p>
         <p id="validity-status" role="status"></p>
-        <button class="primary" type="submit">Guardar vigencia</button>
+        <button class="primary" type="submit"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-check"></use></svg> Guardar vigencia</button>
       </form>
       <ul id="documents" aria-label="Documentos y estado de preparación" role="list"></ul>
     </section>
@@ -260,14 +279,14 @@
       <p id="delete-note" class="muted">Se borrarán sus mensajes de este navegador de forma permanente.</p>
       <p id="delete-status" role="status"></p>
       <div class="delete-actions">
-        <button type="button" data-close autofocus>Cancelar</button>
-        <button class="history-danger" type="submit">Eliminar</button>
+        <button type="button" data-close autofocus><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"></use></svg> Cancelar</button>
+        <button class="history-danger" type="submit"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-trash"></use></svg> Eliminar</button>
       </div>
     </form>
   </dialog>
   <dialog id="share" aria-labelledby="share-heading">
     <form id="share-form">
-      <div class="dialog-title"><h2 id="share-heading">Compartir por WhatsApp</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+      <div class="dialog-title"><h2 id="share-heading">Compartir por WhatsApp</h2><button type="button" data-close aria-label="Cerrar"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-close"></use></svg></button></div>
       <div class="field">
         <label for="phone">Número con código de país</label>
         <input id="phone" type="tel" autocomplete="tel" placeholder="+502 1234 5678" required aria-describedby="share-note">
@@ -277,7 +296,7 @@
         <summary>Ver mensaje</summary>
         <p id="share-preview"></p>
       </details>
-      <button class="primary" type="submit">Abrir WhatsApp</button>
+      <button class="primary" type="submit"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ui-whatsapp"></use></svg> Abrir WhatsApp</button>
     </form>
   </dialog>
 </body>
