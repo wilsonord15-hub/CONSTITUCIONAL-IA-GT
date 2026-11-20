@@ -428,7 +428,13 @@ textarea { resize: vertical; }
 .validity-row button { min-height: 40px; }
 #status, [id$="-status"] { color: #dbe0f3; font-size: .88rem; overflow-wrap: anywhere; }
 #status:empty, [id$="-status"]:empty { display: none; }
-.profile { overflow: hidden; padding-bottom: .5rem; }
+.profile {
+  position: sticky;
+  top: 1rem;
+  z-index: 1;
+  overflow: hidden;
+  padding-bottom: .5rem;
+}
 .portrait {
   background:
     radial-gradient(circle at 50% 37%, transparent 32%, #accfff39 32.5%, transparent 33%, transparent 39%, #a4c6f525 39.5%, transparent 40%),
@@ -533,8 +539,8 @@ dialog::backdrop { background: #07091081; backdrop-filter: blur(5px); }
 @media (max-width: 860px) {
   .workspace {
     grid-template-columns: minmax(9.5rem, .9fr) minmax(0, 2.4fr);
-    grid-template-areas: "avatar chat" "history chat" ". chat";
-    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "avatar chat" "avatar history";
+    grid-template-rows: auto auto;
   }
   .profile { grid-area: avatar; }
   .history { grid-area: history; }
