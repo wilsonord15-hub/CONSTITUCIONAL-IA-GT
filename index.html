@@ -26,13 +26,21 @@
     </nav>
   </header>
   <main class="workspace">
-    <aside class="history" aria-label="Historial">
-      <div class="history-title"><h2><span class="icon" aria-hidden="true">≡</span> Historial</h2><button id="new-chat" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
-      <ul id="history"></ul>
+    <aside class="history" aria-labelledby="history-title">
+      <div class="history-title">
+        <h2 id="history-title">Historial</h2>
+        <button id="new-chat" type="button" aria-label="Nueva conversación" title="Nueva conversación">+</button>
+      </div>
+      <div class="history-filters" role="group" aria-label="Ver conversaciones">
+        <button id="history-recent" type="button" aria-pressed="true" aria-controls="history">Recientes</button>
+        <button id="history-archived" type="button" aria-pressed="false" aria-controls="history">Archivados</button>
+      </div>
+      <ul id="history" role="list"></ul>
+      <p id="history-status" role="status"></p>
     </aside>
     <section class="conversation" aria-labelledby="chat-title">
       <div class="chat-heading">
-        <div><p id="visitor-greeting" hidden></p><p>Derecho guatemalteco</p><h1 id="chat-title">Consulta jurídica</h1></div>
+        <div><p id="visitor-greeting" hidden></p><p>Derecho guatemalteco</p><h1 id="chat-title" tabindex="-1">Consulta jurídica</h1></div>
         <button id="audio-toggle" aria-pressed="true"><span class="icon" aria-hidden="true">◖))</span> <span id="audio-label">Voz activada</span></button>
       </div>
       <section id="profile-dialog" class="profile-editor glass-filter-card" hidden aria-labelledby="profile-heading" aria-describedby="profile-intro">
@@ -88,6 +96,10 @@
         <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
       </div>
       <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
+      <div id="archived-conversation" hidden>
+        <p>Conversación archivada</p>
+        <button id="restore-conversation" type="button">Restaurar</button>
+      </div>
       <form id="composer" hidden>
         <label class="sr-only" for="question">Tu consulta</label>
         <textarea id="question" rows="2" maxlength="8000" placeholder="Escribe tu consulta…"></textarea>
@@ -209,6 +221,18 @@
       </form>
       <ul id="documents" aria-label="Documentos y estado de preparación" role="list"></ul>
     </section>
+  </dialog>
+  <dialog id="delete-conversation" aria-labelledby="delete-heading" aria-describedby="delete-note">
+    <form id="delete-conversation-form">
+      <h2 id="delete-heading">¿Eliminar conversación?</h2>
+      <p id="delete-name"></p>
+      <p id="delete-note" class="muted">Se borrarán sus mensajes de este navegador de forma permanente.</p>
+      <p id="delete-status" role="status"></p>
+      <div class="delete-actions">
+        <button type="button" data-close autofocus>Cancelar</button>
+        <button class="history-danger" type="submit">Eliminar</button>
+      </div>
+    </form>
   </dialog>
   <dialog id="share" aria-labelledby="share-heading">
     <form id="share-form">

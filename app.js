@@ -17,6 +17,13 @@ const dictationPreview = byId('dictation-preview');
 const dictationText = byId('dictation-preview-text');
 const send = composer.querySelector('[type="submit"]');
 
+const historyList = byId('history');
+const historyRecent = byId('history-recent');
+const historyArchived = byId('history-archived');
+const historyStatus = byId('history-status');
+const deleteConversation = byId('delete-conversation');
+const deleteStatus = byId('delete-status');
+
 const storageKey = 'dr-constitucional.history.v1';
 const phoneKey = 'dr-constitucional.phone.v1';
 const voiceKey = 'dr-constitucional.voice.v1';
@@ -28,6 +35,8 @@ function firstQuestion(entry) {
 }
 
 let history = [];
+let viewingArchived = false;
+let conversationToDelete;
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
   if (Array.isArray(saved)) {
@@ -147,12 +156,12 @@ function getConfig() {
 
 const keyRequired = 'Agrega tu clave de OpenAI en Configuración.';
 
-function persist() {
+function persist(entries = history, feedback = status) {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(history));
+    localStorage.setItem(storageKey, JSON.stringify(entries));
     return true;
   } catch {
-    status.textContent = 'No hay espacio o permiso para guardar el historial en este navegador.';
+    feedback.textContent = 'No hay espacio o permiso para guardar el historial en este navegador.';
     return false;
   }
 }
@@ -264,37 +273,141 @@ function buildMessage(turn) {
   return article;
 }
 
+const historyIcons = {
+  conversation: 'M7 8h10M7 12h6M4 4h16v12H9l-5 4V4Z',
+  open: 'm9 6 6 6-6 6',
+  archive: 'M4 8h16v12H4zM3 4h18v4H3zM9 12h6',
+  restore: 'M4 5v6h6M4.8 10a8 8 0 1 1 .9 8',
+  delete: 'M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 10v7m4-7v7'
+};
+
+function historyIcon(name) {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const icon = document.createElementNS(namespace, 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  const outline = document.createElementNS(namespace, 'path');
+  outline.setAttribute('d', historyIcons[name]);
+  icon.append(outline);
+  return icon;
+}
+
+function conversationName(entry) {
+  const question = firstQuestion(entry).text;
+  return (plainMessage(question) || question).replace(/\s+/g, ' ').trim();
+}
+
+function historyAction(name, label, title, action) {
+  const control = button('', action);
+  control.className = 'history-action';
+  control.title = label;
+  control.setAttribute('aria-label', label + ' conversación: ' + title);
+  control.append(historyIcon(name));
+  return control;
+}
+
+function canManageHistory(feedback = historyStatus) {
+  if (!busy && !processingDictation && !recorder) return true;
+  feedback.textContent = 'Termina la consulta o el dictado para continuar.';
+  return false;
+}
+
+function setArchived(entry, archived) {
+  if (!canManageHistory()) return false;
+  const updated = { ...entry, archived };
+  const next = history.map(item => item === entry ? updated : item);
+  if (!persist(next, historyStatus)) return false;
+  history = next;
+  if (chat === entry) {
+    stopSpeech();
+    status.textContent = '';
+    chat = updated;
+    renderChat();
+  } else {
+    renderHistory();
+  }
+  historyStatus.textContent = archived ? 'Conversación archivada.' : 'Conversación restaurada.';
+  return true;
+}
+
+function openDeleteConversation(entry, title) {
+  if (!canManageHistory()) return;
+  conversationToDelete = entry;
+  byId('delete-name').textContent = title;
+  deleteStatus.textContent = '';
+  deleteConversation.showModal();
+}
+
+function selectHistoryView(archived) {
+  viewingArchived = archived;
+  historyStatus.textContent = '';
+  renderHistory();
+}
+
+function currentHistoryFilter() {
+  return viewingArchived ? historyArchived : historyRecent;
+}
+
 function renderHistory() {
-  const list = byId('history');
-  list.replaceChildren();
-  if (!history.length) {
+  historyRecent.setAttribute('aria-pressed', String(!viewingArchived));
+  historyArchived.setAttribute('aria-pressed', String(viewingArchived));
+  historyList.replaceChildren();
+  const entries = history.filter(entry => (entry.archived === true) === viewingArchived);
+  if (!entries.length) {
     const empty = document.createElement('li');
     empty.className = 'muted history-empty';
-    empty.textContent = 'Todavía no hay conversaciones.';
-    list.append(empty);
+    empty.textContent = viewingArchived ? 'Aún no hay conversaciones archivadas.' : 'Todavía no hay conversaciones.';
+    historyList.append(empty);
   }
-  for (const entry of history) {
+  for (const entry of entries) {
     const row = document.createElement('li');
-    const question = firstQuestion(entry).text;
-    const label = (plainMessage(question) || question).replace(/\s+/g, ' ').trim();
-    const title = label.length > 66 ? label.slice(0, 65) + '…' : label;
-    const item = button(title, () => {
-      if (busy || processingDictation || recorder) return;
+    row.className = 'history-entry';
+    const name = conversationName(entry);
+    const title = name.length > 120 ? name.slice(0, 119) + '…' : name;
+    const item = button('', () => {
+      if (!canManageHistory()) return;
       stopSpeech();
+      if (chat !== entry) input.value = '';
       chat = entry;
-      input.value = '';
       status.textContent = '';
       renderChat();
+      byId('chat-title').focus();
     });
-    item.setAttribute('aria-current', String(entry === chat));
-    row.append(item);
-    list.append(row);
+    item.className = 'history-open';
+    item.title = title;
+    item.setAttribute('aria-label', 'Abrir conversación: ' + title);
+    if (entry === chat) {
+      item.setAttribute('aria-current', 'true');
+      row.classList.add('history-current');
+    }
+    const nameLabel = document.createElement('span');
+    nameLabel.textContent = title;
+    item.append(historyIcon('conversation'), nameLabel, historyIcon('open'));
+
+    const tools = document.createElement('div');
+    tools.className = 'history-entry-tools';
+    const count = entry.turns.filter(turn => turn?.role === 'user').length;
+    const detail = document.createElement('span');
+    detail.textContent = count === 1 ? '1 consulta' : count + ' consultas';
+    const archive = historyAction(viewingArchived ? 'restore' : 'archive',
+      viewingArchived ? 'Restaurar' : 'Archivar', title, () => {
+        if (setArchived(entry, !viewingArchived)) currentHistoryFilter().focus();
+      });
+    const remove = historyAction('delete', 'Eliminar', title, () => openDeleteConversation(entry, title));
+    remove.classList.add('history-remove');
+    tools.append(detail, archive, remove);
+    row.append(item, tools);
+    historyList.append(row);
   }
 }
 
 function appendTurn(turn) {
   chat.turns.push(turn);
-  if (turn.role === 'user' && !history.includes(chat)) history.unshift(chat);
+  if (turn.role === 'user' && history[0] !== chat) {
+    const previous = history.indexOf(chat);
+    if (previous !== -1) history.splice(previous, 1);
+    history.unshift(chat);
+  }
   messages.append(buildMessage(turn));
   messages.scrollTop = messages.scrollHeight;
   renderHistory();
@@ -306,8 +419,10 @@ function renderChat() {
   greeting.hidden = !visitorProfile?.name;
   greeting.textContent = visitorProfile?.name ? '¡Hola, ' + visitorProfile.name + '!' : '';
   const editing = !profileDialog.hidden;
+  const archived = chat?.archived === true;
   byId('welcome').hidden = Boolean(chat) || editing;
-  composer.hidden = !chat || editing;
+  composer.hidden = !chat || editing || archived;
+  byId('archived-conversation').hidden = editing || !archived;
   messages.hidden = editing;
   messages.replaceChildren(...(chat?.turns || []).map(buildMessage));
   messages.scrollTop = messages.scrollHeight;
@@ -499,8 +614,37 @@ byId('new-chat').addEventListener('click', () => {
   chat = undefined;
   status.textContent = '';
   input.value = '';
+  viewingArchived = false;
+  historyStatus.textContent = '';
   renderChat();
   byId('start').focus();
+});
+
+historyRecent.addEventListener('click', () => selectHistoryView(false));
+historyArchived.addEventListener('click', () => selectHistoryView(true));
+byId('restore-conversation').addEventListener('click', () => {
+  if (chat?.archived && setArchived(chat, false)) input.focus();
+});
+deleteConversation.addEventListener('close', () => { conversationToDelete = undefined; });
+byId('delete-conversation-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!conversationToDelete || !canManageHistory(deleteStatus)) return;
+  const entry = conversationToDelete;
+  const next = history.filter(item => item !== entry);
+  if (!persist(next, deleteStatus)) return;
+  history = next;
+  deleteConversation.close();
+  if (chat === entry) {
+    stopSpeech();
+    chat = undefined;
+    input.value = '';
+    status.textContent = '';
+    renderChat();
+  } else {
+    renderHistory();
+  }
+  historyStatus.textContent = 'Conversación eliminada.';
+  currentHistoryFilter().focus();
 });
 
 audioToggle.addEventListener('click', () => {
@@ -522,7 +666,7 @@ input.addEventListener('keydown', event => {
 composer.addEventListener('submit', async event => {
   event.preventDefault();
   const question = input.value.trim();
-  if (!chat || !question || busy || recorder || processingDictation) return;
+  if (!chat || chat.archived === true || !question || busy || recorder || processingDictation) return;
   unlockAudio();
   stopSpeech();
   busy = true;
