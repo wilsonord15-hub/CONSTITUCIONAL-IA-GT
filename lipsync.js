@@ -1,0 +1,80 @@
+const neutral = { open: 0, width: 0, weight: 0.65 };
+const shape = {
+  a: { open: 0.9, width: 0.08, weight: 1.35 },
+  e: { open: 0.52, width: 0.5, weight: 1.25 },
+  i: { open: 0.32, width: 0.65, weight: 1.15 },
+  o: { open: 0.66, width: -0.55, weight: 1.25 },
+  u: { open: 0.32, width: -0.7, weight: 1.15 },
+  labial: { open: 0, width: -0.12, weight: 0.8 },
+  dental: { open: 0.22, width: 0.23, weight: 0.78 }
+};
+
+export function decodeSpeech(buffer, contentType) {
+  if (!contentType?.startsWith('application/x-dr-speech')) return { audio: buffer, words: [] };
+  if (buffer.byteLength < 5) throw new Error('La muestra de voz está incompleta.');
+  const metadataEnd = new DataView(buffer).getUint32(0) + 4;
+  if (metadataEnd >= buffer.byteLength) throw new Error('La muestra de voz está incompleta.');
+  let words = [];
+  try {
+    const metadata = JSON.parse(new TextDecoder().decode(buffer.slice(4, metadataEnd)));
+    if (Array.isArray(metadata)) words = metadata;
+  } catch {}
+  return { audio: buffer.slice(metadataEnd), words };
+}
+
+function spanishMouthShapes(word) {
+  const letters = word.toLowerCase().normalize('NFD')
+    .replace(/u\u0308/g, 'ü')
+    .replace(/n\u0303/g, 'ñ')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-zñü]/g, '')
+    .replace(/qu(?=[ei])/g, 'k')
+    .replace(/gu(?=[ei])/g, 'g')
+    .replace(/ch|rr|ll/g, 'j')
+    .replace(/h/g, '');
+  return Array.from(letters, (letter, index) => {
+    if (letter === 'ü' || (letter === 'y' && index === letters.length - 1)) {
+      return shape[letter === 'ü' ? 'u' : 'i'];
+    }
+    if ('bmpv'.includes(letter)) return shape.labial;
+    if ('dfstz'.includes(letter)) return shape.dental;
+    return shape[letter] || neutral;
+  });
+}
+
+export function makeMouthTrack(words, duration) {
+  if (!Number.isFinite(duration) || duration <= 0) return undefined;
+  const cues = [];
+  let previousEnd = 0;
+  for (const entry of words) {
+    if (!Array.isArray(entry)) continue;
+    const [word, start, end] = entry;
+    if (typeof word !== 'string' || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+    const from = Math.max(previousEnd, start, 0);
+    const to = Math.min(duration, end);
+    if (to <= from) continue;
+    const shapes = spanishMouthShapes(word);
+    if (!shapes.length) continue;
+    const weight = shapes.reduce((total, item) => total + item.weight, 0);
+    let position = from;
+    for (const item of shapes) {
+      const length = (to - from) * item.weight / weight;
+      cues.push({ from: position, to: position + length, open: item.open, width: item.width });
+      position += length;
+    }
+    previousEnd = to;
+  }
+  if (!cues.length) return undefined;
+
+  return time => {
+    let lower = 0;
+    let upper = cues.length;
+    while (lower < upper) {
+      const middle = (lower + upper) >>> 1;
+      if (cues[middle].to <= time) lower = middle + 1;
+      else upper = middle;
+    }
+    const cue = cues[lower];
+    return cue && time >= cue.from ? cue : neutral;
+  };
+}

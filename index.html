@@ -3,82 +3,217 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10141c">
+  <meta name="theme-color" content="#071326">
   <title>Dr. Constitucional IA</title>
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icono-constitucional-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
+  <div class="nebula" aria-hidden="true"></div>
   <header class="top">
-    <div class="brand"><span aria-hidden="true">⚖</span> Dr. Constitucional IA</div>
+    <div class="brand"><span class="seal" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span> Dr. Constitucional IA</div>
     <nav aria-label="Herramientas">
-      <button id="open-library">Biblioteca</button>
-      <button id="open-settings">Configuración</button>
+      <button id="library-shortcut"><span class="icon" aria-hidden="true">§</span> Biblioteca</button>
+      <button id="open-profile"><span class="icon" aria-hidden="true">◎</span> Mi perfil</button>
+      <button id="open-settings"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</button>
     </nav>
   </header>
   <main class="workspace">
     <aside class="history" aria-label="Historial">
-      <div class="history-title"><h2>Historial</h2><button id="new-chat" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
+      <div class="history-title"><h2><span class="icon" aria-hidden="true">≡</span> Historial</h2><button id="new-chat" aria-label="Nueva conversación" title="Nueva conversación">+</button></div>
       <ul id="history"></ul>
     </aside>
     <section class="conversation" aria-labelledby="chat-title">
       <div class="chat-heading">
-        <div><p>Derecho guatemalteco</p><h1 id="chat-title">Consulta jurídica</h1></div>
-        <button id="audio-toggle" aria-pressed="true">Voz activada</button>
+        <div><p id="visitor-greeting" hidden></p><p>Derecho guatemalteco</p><h1 id="chat-title">Consulta jurídica</h1></div>
+        <button id="audio-toggle" aria-pressed="true"><span class="icon" aria-hidden="true">◖))</span> <span id="audio-label">Voz activada</span></button>
       </div>
+      <section id="profile-dialog" class="profile-editor glass-filter-card" hidden aria-labelledby="profile-heading" aria-describedby="profile-intro">
+        <div class="workspace-panel-heading">
+          <span class="panel-emblem" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
+          <div>
+            <h2 id="profile-heading"><span id="profile-title">Personalizá tu consulta</span></h2>
+            <p id="profile-intro">Contale al Dr. cómo querés que se dirija a vos y para qué pensás usar la app.</p>
+          </div>
+        </div>
+        <form id="profile-form">
+          <div class="field">
+            <label for="profile-name">¿Cómo querés que te llame?</label>
+            <input id="profile-name" type="text" autocomplete="nickname" maxlength="60" required placeholder="Nombre o apodo">
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="profile-role">Tu perfil</label>
+              <select id="profile-role">
+                <option value="">Sin especificar</option>
+                <option value="Estudiante">Estudiante</option>
+                <option value="Profesional del derecho">Profesional del derecho</option>
+                <option value="Docente o investigador">Docente o investigador</option>
+                <option value="Público general">Público general</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="profile-detail">Nivel de detalle</label>
+              <select id="profile-detail">
+                <option value="">Según la consulta</option>
+                <option value="Introductorio">Introductorio</option>
+                <option value="Intermedio">Intermedio</option>
+                <option value="Técnico">Técnico</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="profile-goal">¿Para qué vas a usar la app? <span class="muted">(opcional)</span></label>
+            <textarea id="profile-goal" rows="2" maxlength="240" placeholder="Ej. Preparar una exposición sobre amparo"></textarea>
+          </div>
+          <p class="profile-disclosure muted"><span class="icon" aria-hidden="true">◎</span> Tu perfil se guarda en este navegador y acompaña tus consultas a OpenAI. Evitá incluir datos sensibles.</p>
+          <p id="profile-status" role="status"></p>
+          <div class="profile-actions">
+            <button type="button" id="skip-profile">Omitir por ahora</button>
+            <button type="button" id="cancel-profile" hidden>Cancelar</button>
+            <button class="primary" type="submit"><span class="icon" aria-hidden="true">✓</span> Guardar perfil</button>
+          </div>
+        </form>
+      </section>
       <div id="welcome">
+        <span class="hero-seal" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
         <h2>¿Qué querés consultar?</h2>
-        <button id="start" class="primary">Conversar</button>
+        <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
       </div>
       <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
       <form id="composer" hidden>
         <label class="sr-only" for="question">Tu consulta</label>
         <textarea id="question" rows="2" maxlength="8000" placeholder="Escribí tu consulta…"></textarea>
+        <details class="query-options">
+          <summary>Modo y fecha de consulta</summary>
+          <div class="field-grid">
+            <div class="field">
+              <label for="query-mode">Modo</label>
+              <select id="query-mode"><option value="consulta">Consulta jurídica</option><option value="audiencia">Audiencia o exposición</option></select>
+            </div>
+            <div class="field">
+              <label for="query-date">Fecha de referencia (opcional)</label>
+              <input id="query-date" type="date">
+            </div>
+          </div>
+        </details>
         <div class="composer-actions">
-          <button type="button" id="dictate">Dictar</button>
-          <button type="submit" class="primary">Enviar</button>
+          <button type="button" id="dictate"><span class="icon" aria-hidden="true">◉</span> <span id="dictate-label">Dictar</span></button>
+          <button type="submit" class="primary"><span class="icon" aria-hidden="true">↑</span> Enviar</button>
         </div>
       </form>
       <p id="status" role="status"></p>
     </section>
     <aside class="profile" aria-label="Avatar del Dr. Constitucional IA">
-      <div class="portrait"><canvas id="avatar" width="700" height="740" role="img" aria-label="Retrato del Dr. Constitucional IA"></canvas></div>
+      <div class="portrait">
+        <canvas id="avatar" width="700" height="740" role="img" aria-label="Retrato del Dr. Constitucional IA con la bandera de Guatemala en el traje"></canvas>
+      </div>
       <div class="profile-label"><strong>Dr. Constitucional IA</strong><span>Voz generada por IA</span></div>
-      <button id="stop-audio" hidden>Detener voz</button>
+      <button id="stop-audio" hidden><span class="icon" aria-hidden="true">■</span> Detener voz</button>
     </aside>
   </main>
-  <dialog id="settings">
-    <form id="settings-form">
-      <div class="dialog-title"><h2>Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
-      <label for="api-key">Clave API de OpenAI</label>
-      <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Ingresá tu clave">
-      <p id="key-note" class="muted">Se guarda en el servidor local.</p>
-      <label for="voice">Voz</label>
-      <select id="voice"><option value="cedar">Cedar</option><option value="marin">Marin</option><option value="alloy">Alloy</option><option value="onyx">Onyx</option><option value="nova">Nova</option></select>
-      <label for="accent">Acento</label>
-      <select id="accent"><option value="chapin">Guatemalteco (chapín)</option><option value="neutro">Latinoamericano neutro</option></select>
+  <dialog id="settings" aria-labelledby="settings-heading">
+    <div class="dialog-title"><h2 id="settings-heading"><span class="icon" aria-hidden="true">⚙︎</span> Configuración</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+    <div id="settings-nav" class="settings-nav" aria-label="Secciones de configuración" hidden>
+      <button type="button" id="open-preferences" aria-pressed="true"><span class="icon" aria-hidden="true">⚿</span> Preferencias</button>
+      <button type="button" id="open-library" aria-pressed="false"><span class="icon" aria-hidden="true">§</span> Biblioteca jurídica</button>
+    </div>
+    <p id="settings-access-status" role="status"></p>
+    <form id="admin-form" hidden>
+      <div class="field">
+        <label for="admin-password">Contraseña de Configuración</label>
+        <input id="admin-password" type="password" autocomplete="current-password" required maxlength="1024">
+      </div>
+      <button class="primary" type="submit"><span class="icon" aria-hidden="true">↪</span> Entrar a Configuración</button>
+    </form>
+    <form id="settings-form" hidden>
+      <div class="field">
+        <div class="key-label">
+          <label for="api-key">Clave API de OpenAI</label>
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" aria-label="Crear clave de OpenAI (abre en otra pestaña)">Crear clave <span aria-hidden="true">↗</span></a>
+        </div>
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Ingresá tu clave" aria-describedby="key-note">
+        <p id="key-note" class="muted">Se guarda en el servidor local.</p>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="voice">Voz</label>
+          <select id="voice"><option value="vesper">Vesper</option><option value="stone">Stone</option><option value="ripple">Ripple</option></select>
+        </div>
+        <div class="field">
+          <label for="accent">Acento</label>
+          <select id="accent"><option value="chapin">Guatemalteco (chapín)</option><option value="neutro">Latinoamericano neutro</option></select>
+        </div>
+      </div>
+      <div class="voice-preview">
+        <button id="preview-voice" type="button" disabled><span class="icon" aria-hidden="true">▷</span> <span id="preview-voice-label">Escuchar voz</span></button>
+        <p class="muted" id="voice-preview-status" role="status"></p>
+      </div>
       <p id="settings-status" role="status"></p>
-      <button class="primary" type="submit">Guardar</button>
+      <button class="primary" type="submit"><span class="icon" aria-hidden="true">✓</span> Guardar</button>
     </form>
+    <section id="library" aria-labelledby="library-heading" hidden>
+      <h3 id="library-heading">Biblioteca jurídica</h3>
+      <form id="upload-form" hidden>
+        <div id="drop-zone">
+          <div>
+            <strong>Agregar documentos</strong>
+            <p class="muted" id="document-note"></p>
+          </div>
+          <input id="document" type="file" accept=".pdf,.docx,.txt,.md" multiple hidden>
+          <button class="primary" type="button" id="choose-pdf">Elegir archivos</button>
+        </div>
+        <ul id="selected-documents" aria-label="Archivos seleccionados"></ul>
+        <button id="submit-documents" class="primary" type="submit" hidden disabled>Subir documentos</button>
+        <p id="upload-status" role="status"></p>
+      </form>
+      <div class="section-heading library-list-heading">
+        <h4>Documentos de la biblioteca</h4>
+        <button id="refresh-library" type="button"><span class="icon" aria-hidden="true">↻</span> Actualizar</button>
+      </div>
+      <p id="library-status" role="status"></p>
+      <form id="validity-form" hidden>
+        <div class="section-heading">
+          <h3 id="validity-heading"></h3>
+          <button id="close-validity" type="button" aria-label="Cerrar editor de vigencia">×</button>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="validity-state">Estado de vigencia</label>
+            <select id="validity-state">
+              <option value="sin_revisar">Sin revisar</option><option value="vigente">Vigente</option>
+              <option value="historica">Versión histórica</option><option value="derogada">Derogada</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="validity-version">Versión o reforma</label>
+            <input id="validity-version" maxlength="160" placeholder="Ej. Reforma por Decreto 00-0000">
+          </div>
+          <div class="field"><label for="validity-from">Vigente desde</label><input id="validity-from" type="date"></div>
+          <div class="field"><label for="validity-until">Vigente hasta (inclusive)</label><input id="validity-until" type="date"></div>
+        </div>
+        <p class="muted">Para filtrar por fecha, registra el inicio y el fin. Si la norma sigue vigente, basta con el inicio.</p>
+        <p id="validity-status" role="status"></p>
+        <button class="primary" type="submit">Guardar vigencia</button>
+      </form>
+      <ul id="documents" aria-label="Documentos y estado de preparación" role="list"></ul>
+    </section>
   </dialog>
-  <dialog id="library">
-    <div class="dialog-title"><h2>Biblioteca jurídica</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
-    <form id="upload-form">
-      <label for="document">Agregar documento</label>
-      <p class="muted" id="document-note">El archivo se enviará a OpenAI para indexarlo.</p>
-      <input id="document" type="file" accept=".pdf,.docx,.txt,.md" required>
-      <button class="primary" type="submit">Indexar documento</button>
-    </form>
-    <p id="library-status" role="status"></p>
-    <ul id="documents"></ul>
-    <button id="refresh-library" type="button">Actualizar estado</button>
-  </dialog>
-  <dialog id="share">
+  <dialog id="share" aria-labelledby="share-heading">
     <form id="share-form">
-      <div class="dialog-title"><h2>Compartir por WhatsApp</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
-      <label for="phone">Número con código de país</label>
-      <input id="phone" type="tel" autocomplete="tel" placeholder="+502 1234 5678" required>
-      <p id="share-note" class="muted"></p>
+      <div class="dialog-title"><h2 id="share-heading">Compartir por WhatsApp</h2><button type="button" data-close aria-label="Cerrar">×</button></div>
+      <div class="field">
+        <label for="phone">Número con código de país</label>
+        <input id="phone" type="tel" autocomplete="tel" placeholder="+502 1234 5678" required aria-describedby="share-note">
+        <p id="share-note" class="muted"></p>
+      </div>
+      <details class="share-preview">
+        <summary>Ver mensaje</summary>
+        <p id="share-preview"></p>
+      </details>
       <button class="primary" type="submit">Abrir WhatsApp</button>
     </form>
   </dialog>

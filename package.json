@@ -2,6 +2,15 @@
   "name": "constitucional-ia-gt",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "scripts": { "dev": "node server.mjs" }
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node server.mjs"
+  },
+  "dependencies": {
+    "@breezystack/lamejs": "1.2.7",
+    "@vercel/blob": "2.4.0",
+    "ws": "8.23.0"
+  }
 }
