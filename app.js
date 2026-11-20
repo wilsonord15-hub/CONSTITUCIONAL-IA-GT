@@ -522,29 +522,21 @@ async function playSpeechStream(response, signal) {
   if (!sources.size && !signal.aborted) finish();
 }
 
-async function speak(text, selection, preset) {
-  const isPreview = Boolean(selection);
-  if ((!audioEnabled && !isPreview) || !audioContext) return;
+async function speak(text, preset) {
+  if (!audioEnabled || !audioContext) return;
   stopSpeech();
   const controller = new AbortController();
   speechRequest = controller;
-  if (isPreview) {
-    previewingVoice = true;
-    previewLabel.textContent = 'Detener muestra';
-    previewStatus.textContent = 'Preparando muestra…';
-  } else {
-    stopButton.hidden = false;
-  }
+  stopButton.hidden = false;
   try {
     const response = await post('speech', {
       text: preset ? undefined : text.replace(/\[\d+\]/g, '').slice(0, 4096),
       preset,
       stream: !preset,
-      voice: (selection || voicePreference).voice,
-      accent: (selection || voicePreference).accent
+      voice: voicePreference.voice,
+      accent: voicePreference.accent
     }, controller.signal);
     if (!preset) return await playSpeechStream(response, controller.signal);
-    const stored = response.headers.get('X-Voice-Storage');
     const { audio, words } = decodeSpeech(await response.arrayBuffer(), response.headers.get('Content-Type'));
     const decoded = await audioContext.decodeAudioData(audio);
     if (controller.signal.aborted) return;
@@ -567,20 +559,13 @@ async function speak(text, selection, preset) {
       speechRequest = undefined;
       avatar.connect();
       stopButton.hidden = true;
-      if (isPreview) {
-        previewingVoice = false;
-        previewLabel.textContent = 'Escuchar voz';
-        previewStatus.textContent = stored === 'persistent' ? 'Saludo guardado en el servidor.'
-          : stored === 'memory' ? 'Saludo listo para esta instancia.' : '';
-      }
     };
     controller.signal.addEventListener('abort', () => analyser.disconnect(), { once: true });
     source.start(start);
-    if (isPreview) previewStatus.textContent = 'Reproduciendo muestra…';
   } catch (error) {
     if (controller.signal.aborted) return;
     stopSpeech();
-    (isPreview ? previewStatus : status).textContent = error.message;
+    status.textContent = error.message;
   }
 }
 
@@ -598,7 +583,7 @@ byId('start').addEventListener('click', async () => {
   try {
     const config = await getConfig();
     if (config.configured && chat === startedChat && chat.turns.length === 1 && !busy && !recorder && !processingDictation) {
-      void speak(undefined, undefined, 'saludo');
+      void speak(undefined, 'saludo');
     }
     if (!config.configured) status.textContent = config.adminRequired
       ? 'La conversación con IA para visitantes todavía no está habilitada.'
@@ -946,9 +931,7 @@ function showConfig(config) {
     select.value = Array.from(select.options).some(option => option.value === preference)
       ? preference : config[field];
   }
-  previewVoice.disabled = !config.configured;
-  previewStatus.textContent = config.configured ? 'La muestra prepara el saludo con esta voz y acento.'
-    : 'Guarda una clave de OpenAI para escuchar una muestra.';
+  renderVoicePreview();
 }
 
 async function loadSettingsAccess() {
@@ -1006,15 +989,80 @@ adminForm.addEventListener('submit', async event => {
   }
 });
 
+const voiceSamples = new Map();
+
+function selectedVoiceSample() {
+  return byId('voice').value + '-' + byId('accent').value;
+}
+
+function renderVoicePreview() {
+  if (previewingVoice) return;
+  const sample = voiceSamples.get(selectedVoiceSample());
+  previewVoice.disabled = !sample?.url;
+  previewStatus.textContent = sample?.failed ? 'Esta muestra aún no está disponible.'
+    : sample && !sample.url ? 'Descargando la muestra…' : '';
+}
+
+function preloadVoiceSamples() {
+  for (const voice of byId('voice').options) {
+    for (const accent of byId('accent').options) {
+      const name = voice.value + '-' + accent.value;
+      if (voiceSamples.has(name) && !voiceSamples.get(name).failed) continue;
+      const sample = {};
+      voiceSamples.set(name, sample);
+      void fetch('/voice-previews/v1/' + name + '.mp3')
+        .then(response => {
+          if (!response.ok || !response.headers.get('Content-Type')?.startsWith('audio/')) {
+            throw new Error('Muestra no disponible');
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          sample.url = URL.createObjectURL(blob);
+        })
+        .catch(() => {
+          sample.failed = true;
+        })
+        .finally(() => {
+          if (name === selectedVoiceSample()) renderVoicePreview();
+        });
+    }
+  }
+  renderVoicePreview();
+}
+
+for (const field of ['voice', 'accent']) {
+  byId(field).addEventListener('change', () => {
+    if (previewingVoice) stopSpeech();
+    renderVoicePreview();
+  });
+}
+
 previewVoice.addEventListener('click', () => {
   if (previewingVoice) {
     stopSpeech();
     return;
   }
-  unlockAudio(true);
-  void speak(undefined, {
-    voice: byId('voice').value, accent: byId('accent').value
-  }, 'saludo');
+  const sample = voiceSamples.get(selectedVoiceSample());
+  if (!sample?.url) return;
+  stopSpeech();
+  const audio = new Audio(sample.url);
+  previewingVoice = true;
+  previewLabel.textContent = 'Detener muestra';
+  previewStatus.textContent = 'Reproduciendo muestra…';
+  const stop = () => {
+    audio.onended = null;
+    audio.pause();
+  };
+  playback = stop;
+  audio.onended = () => {
+    if (playback === stop) stopSpeech();
+  };
+  void audio.play().catch(() => {
+    if (playback !== stop) return;
+    stopSpeech();
+    previewStatus.textContent = 'No se pudo reproducir la muestra.';
+  });
 });
 
 settingsForm.addEventListener('submit', async event => {
@@ -1074,6 +1122,7 @@ function showSettingsSection(showLibrary) {
     validityForm.hidden = true;
   }
   if (showLibrary && previewingVoice) stopSpeech();
+  if (!showLibrary) preloadVoiceSamples();
 }
 
 function renderDocuments(files) {

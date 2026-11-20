@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "node server.mjs",
-    "css:build": "tailwindcss -i ./styles/tailwind.css -o ./public/tailwind.css --minify"
+    "css:build": "tailwindcss -i ./styles/tailwind.css -o ./public/tailwind.css --minify",
+    "voice:previews": "node scripts/generate-voice-previews.mjs"
   },
   "dependencies": {
     "@breezystack/lamejs": "1.2.7",

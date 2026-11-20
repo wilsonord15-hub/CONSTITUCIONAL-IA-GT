@@ -33,12 +33,14 @@ la respuesta escrita conserva el texto de la consulta y sus citas.
 Para sincronizar los labios, la app obtiene tiempos por palabra del audio generado
 con una segunda llamada a OpenAI. Estima la posición de cada sonido dentro de su
 palabra y la traduce a formas de boca. Si faltan los tiempos, sigue el nivel del audio.
-**Escuchar voz** prepara el saludo fijo con la voz y el acento seleccionados. La app
-reutiliza ese saludo en nuevas conversaciones. En local se guarda en `.data/speech/`.
-En Vercel, conecta un almacén Blob privado para conservar los saludos entre despliegues
-y configura `BLOB_READ_WRITE_TOKEN` como secreto del proyecto. Sin Blob, solo se
-reutilizan durante la vida de cada instancia. Las respuestas y datos personales no
-entran en la caché de saludos.
+**Escuchar voz** usa archivos MP3 estáticos precargados al abrir Preferencias.
+Antes de publicar las muestras, ejecuta `npm run voice:previews` con
+`OPENAI_API_KEY` configurada en el entorno y con acceso a GPT-Live. El comando
+genera los seis MP3 en `public/voice-previews/v1/`. Incluye esos archivos en la
+publicación. La reproducción de las muestras no requiere una clave en el navegador.
+
+El saludo de la conversación por voz tiene su propia caché en `.data/speech/` en
+local. En Vercel usa Blob privado si está configurado `BLOB_READ_WRITE_TOKEN`.
 
 La clave queda en `.data/settings.json` en el servidor local, en un archivo con permisos
 `0600` excluido de Git. Si la cambias después de crear una biblioteca, la nueva clave

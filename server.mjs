@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import { pathToFileURL } from 'node:url';
 import { reusableGreeting } from './speech-cache.mjs';
 import { liveSpeech, liveVoiceModel } from './live-voice.mjs';
+import { accents, defaultAccent, defaultVoice, voicePreviewDirectory, voices } from './voice-presets.mjs';
 import { chunkDocument, documentSections, libraryCall, libraryConfig, libraryDocument, libraryLimit } from './library.mjs';
 
 const dataDir = new URL('./.data/', import.meta.url);
@@ -14,21 +15,6 @@ const hostedKeyCookie = '__Host-dr-openai';
 const adminCookie = '__Host-dr-admin';
 const adminLifetimeSeconds = 8 * 60 * 60;
 const keyLifetimeSeconds = 30 * 24 * 60 * 60;
-const voices = ['vesper', 'stone', 'ripple'];
-const defaultVoice = 'vesper';
-const accents = {
-  chapin: {
-    delivery: 'Español de Guatemala, acento chapín natural y moderado, con entonación guatemalteca consistente y tono cálido y profesional.',
-    address: 'Usa voseo guatemalteco natural al dirigirte a la persona.',
-    greeting: 'Hola, soy el doctor Constitucional IA. Contame qué tema jurídico querés consultar.'
-  },
-  neutro: {
-    delivery: 'Español latinoamericano neutro, claro y profesional.',
-    address: 'Dirígete a la persona de tú y usa las formas del tuteo.',
-    greeting: 'Hola, soy el doctor Constitucional IA. Cuéntame qué tema jurídico quieres consultar.'
-  }
-};
-const defaultAccent = 'neutro';
 
 function selectedAccent(requested, saved) {
   if (Object.hasOwn(accents, requested)) return accents[requested];
@@ -54,6 +40,11 @@ const assets = new Map([
   ['/icono-constitucional-32.png', ['assets/icono-constitucional-32.png', 'image/png']],
   ['/apple-touch-icon.png', ['assets/apple-touch-icon.png', 'image/png']]
 ]);
+
+const voicePreviewAssets = new Map(voices.flatMap(voice => Object.keys(accents).map(accent => {
+  const path = voicePreviewDirectory + '/' + voice + '-' + accent + '.mp3';
+  return ['/' + path, ['public/' + path, 'audio/mpeg']];
+})));
 
 class RequestError extends Error {
   constructor(status, message) {
@@ -589,14 +580,19 @@ export async function handle(request, response, { hosted = false } = {}) {
     const origin = (hosted ? 'https://' : 'http://') + request.headers.host;
     const url = new URL(request.url, origin);
     const pathname = hosted && url.pathname === '/api/app' ? url.searchParams.get('__route') : url.pathname;
-    const asset = assets.get(pathname);
+    const previewAsset = voicePreviewAssets.get(pathname);
+    const asset = assets.get(pathname) || previewAsset;
     if ((!hosted && !['127.0.0.1:3001', 'localhost:3001'].includes(request.headers.host)) ||
         (request.method !== 'GET' && request.method !== 'HEAD' && request.headers.origin !== origin) ||
         (!asset && request.headers['sec-fetch-site'] === 'cross-site')) {
       throw new RequestError(403, 'Abre la aplicación desde su dirección principal.');
     }
     if ((request.method === 'GET' || request.method === 'HEAD') && asset) {
-      const content = await readFile(new URL(asset[0], import.meta.url));
+      const content = await readFile(new URL(asset[0], import.meta.url)).catch(error => {
+        if (previewAsset && error.code === 'ENOENT') throw new RequestError(404, 'La muestra de voz todavía no está disponible.');
+        throw error;
+      });
+      if (previewAsset) response.setHeader('Cache-Control', 'public, max-age=3600');
       response.writeHead(200, { 'Content-Type': asset[1] });
       return response.end(request.method === 'HEAD' ? undefined : content);
     }
