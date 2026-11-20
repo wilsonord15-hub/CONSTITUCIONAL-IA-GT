@@ -19,6 +19,7 @@ const storageKey = 'dr-constitucional.history.v1';
 const phoneKey = 'dr-constitucional.phone.v1';
 const voiceKey = 'dr-constitucional.voice.v1';
 const profileKey = 'dr-constitucional.profile.v1';
+const greetingContinuation = ' Soy el Dr. Constitucional IA. Cuéntame qué tema jurídico quieres consultar.';
 
 function firstQuestion(entry) {
   return entry.turns.find(turn => turn?.role === 'user' && typeof turn.text === 'string' && turn.text.trim());
@@ -69,7 +70,7 @@ const profileFields = {
 };
 
 function openProfile(firstVisit) {
-  byId('profile-title').textContent = firstVisit ? 'Personalizá tu consulta' : 'Mi perfil';
+  byId('profile-title').textContent = firstVisit ? 'Personaliza tu consulta' : 'Mi perfil';
   byId('skip-profile').hidden = !firstVisit;
   byId('cancel-profile').hidden = firstVisit;
   profileStatus.textContent = '';
@@ -108,7 +109,7 @@ profileForm.addEventListener('submit', event => {
     name, field.value.trim().replace(/\s+/g, ' ')
   ]));
   if (!profile.name) {
-    profileStatus.textContent = 'Escribí el nombre o apodo que querés usar.';
+    profileStatus.textContent = 'Escribe el nombre o apodo que quieres usar.';
     profileName.focus();
     return;
   }
@@ -142,7 +143,7 @@ function getConfig() {
   return configRequest;
 }
 
-const keyRequired = 'Agregá tu clave de OpenAI en Configuración.';
+const keyRequired = 'Agrega tu clave de OpenAI en Configuración.';
 
 function persist() {
   try {
@@ -202,7 +203,7 @@ function openShare(turn) {
   try { saved = localStorage.getItem(phoneKey) || ''; } catch {}
   byId('phone').value = saved;
   byId('share-note').textContent = saved
-    ? '¿Usar el número guardado? Podés cambiarlo antes de continuar.'
+    ? '¿Usar el número guardado? Puedes cambiarlo antes de continuar.'
     : 'Guardaremos este número en este navegador para la próxima vez.';
   byId('share-preview').textContent = sharedText;
   byId('share').showModal();
@@ -212,9 +213,12 @@ function buildMessage(turn) {
   const article = document.createElement('article');
   article.className = 'message ' + (turn.role === 'user' ? 'user' : 'assistant');
   const author = document.createElement('strong');
-  author.textContent = turn.role === 'user' ? 'Vos' : 'Dr. Constitucional IA';
+  author.textContent = turn.role === 'user' ? 'Tú' : 'Dr. Constitucional IA';
   const body = document.createElement('p');
-  body.textContent = plainMessage(turn.text);
+  const text = turn.greeting
+    ? turn.text.replace(/ Soy el Dr\. Constitucional IA\..*$/, greetingContinuation)
+    : turn.text;
+  body.textContent = plainMessage(text);
   article.append(author, body);
   if (turn.sources?.length) {
     const sources = document.createElement('p');
@@ -244,7 +248,7 @@ function buildMessage(turn) {
         await navigator.clipboard.writeText(actionText(turn));
         status.textContent = turn.role === 'user' ? 'Pregunta copiada.' : 'Respuesta copiada.';
       } catch {
-        status.textContent = 'No se pudo copiar. Podés seleccionar el texto manualmente.';
+        status.textContent = 'No se pudo copiar. Puedes seleccionar el texto manualmente.';
       }
     });
     const share = button('WhatsApp', () => openShare(turn));
@@ -400,7 +404,7 @@ byId('start').addEventListener('click', async () => {
   chat = { id: crypto.randomUUID(), turns: [] };
   const startedChat = chat;
   const hello = visitorProfile?.name ? '¡Hola, ' + visitorProfile.name + '!' : '¡Hola!';
-  const greeting = hello + ' Soy el Dr. Constitucional IA. Contame qué tema jurídico querés consultar.';
+  const greeting = hello + greetingContinuation;
   renderChat();
   appendTurn({ role: 'assistant', text: greeting, greeting: true });
   input.focus();
@@ -461,6 +465,7 @@ composer.addEventListener('submit', async event => {
       question,
       history: context,
       profile: visitorProfile?.name ? visitorProfile : undefined,
+      accent: voicePreference.accent,
       mode: byId('query-mode').value,
       asOf: byId('query-date').value
     })).json();
@@ -513,7 +518,7 @@ dictate.addEventListener('click', async () => {
       try {
         const audio = new Blob(chunks, { type: format[1] });
         if (audio.size > config.audioLimit) {
-          throw new Error('La grabación supera el límite de carga. Probá con un dictado más corto.');
+          throw new Error('La grabación supera el límite de carga. Prueba con un dictado más corto.');
         }
         const result = await api('transcribe?format=' + format[0], {
           method: 'POST',
@@ -547,7 +552,7 @@ dictate.addEventListener('click', async () => {
     processingDictation = false;
     dictate.disabled = false;
     send.disabled = false;
-    status.textContent = error.name === 'NotAllowedError' ? 'Permití el uso del micrófono para dictar.' : error.message;
+    status.textContent = error.name === 'NotAllowedError' ? 'Permite el uso del micrófono para dictar.' : error.message;
   }
 });
 
@@ -563,9 +568,9 @@ let settingsSection = 'preferences';
 function showConfig(config) {
   byId('api-key').value = '';
   byId('key-note').textContent = config.hosted
-    ? (config.configured ? 'Ya hay una clave cifrada para este navegador. Dejá el campo vacío para conservarla.'
+    ? (config.configured ? 'Ya hay una clave cifrada para este navegador. Deja el campo vacío para conservarla.'
       : 'La app guarda la clave cifrada para este navegador.')
-    : (config.configured ? 'Ya hay una clave guardada. Dejá el campo vacío para conservarla.'
+    : (config.configured ? 'Ya hay una clave guardada. Deja el campo vacío para conservarla.'
       : 'La clave se guarda en el servidor local.');
   for (const field of ['voice', 'accent']) {
     const select = byId(field);
@@ -575,7 +580,7 @@ function showConfig(config) {
   }
   previewVoice.disabled = !config.configured;
   previewStatus.textContent = config.configured ? 'La muestra prepara el saludo con esta voz y acento.'
-    : 'Guardá una clave de OpenAI para escuchar una muestra.';
+    : 'Guarda una clave de OpenAI para escuchar una muestra.';
 }
 
 async function loadSettingsAccess() {
@@ -800,7 +805,7 @@ async function refreshLibrary({ quiet = false } = {}) {
     if (uploadForm.hidden) {
       renderDocuments([]);
       libraryStatus.textContent = !config.configured
-        ? 'Guardá la clave de OpenAI en Preferencias para abrir la biblioteca.'
+        ? 'Guarda la clave de OpenAI en Preferencias para abrir la biblioteca.'
         : 'La biblioteca todavía necesita un índice configurado en Vercel.';
       return;
     }
@@ -988,7 +993,7 @@ byId('share-form').addEventListener('submit', event => {
   const phoneInput = byId('phone');
   const phone = phoneInput.value.replace(/[\s()+-]/g, '');
   if (!/^[1-9]\d{7,14}$/.test(phone)) {
-    byId('share-note').textContent = 'Ingresá un número válido con código de país.';
+    byId('share-note').textContent = 'Ingresa un número válido con código de país.';
     phoneInput.focus();
     return;
   }

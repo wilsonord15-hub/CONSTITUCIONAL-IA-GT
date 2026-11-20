@@ -39,13 +39,13 @@
         <div class="workspace-panel-heading">
           <span class="panel-emblem" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
           <div>
-            <h2 id="profile-heading"><span id="profile-title">Personalizá tu consulta</span></h2>
-            <p id="profile-intro">Contale al Dr. cómo querés que se dirija a vos y para qué pensás usar la app.</p>
+            <h2 id="profile-heading"><span id="profile-title">Personaliza tu consulta</span></h2>
+            <p id="profile-intro">Cuéntale al Dr. cómo quieres que se dirija a ti y para qué piensas usar la app.</p>
           </div>
         </div>
         <form id="profile-form">
           <div class="field">
-            <label for="profile-name">¿Cómo querés que te llame?</label>
+            <label for="profile-name">¿Cómo quieres que te llame?</label>
             <input id="profile-name" type="text" autocomplete="nickname" maxlength="60" required placeholder="Nombre o apodo">
           </div>
           <div class="field-grid">
@@ -73,7 +73,7 @@
             <label for="profile-goal">¿Para qué vas a usar la app? <span class="muted">(opcional)</span></label>
             <textarea id="profile-goal" rows="2" maxlength="240" placeholder="Ej. Preparar una exposición sobre amparo"></textarea>
           </div>
-          <p class="profile-disclosure muted"><span class="icon" aria-hidden="true">◎</span> Tu perfil se guarda en este navegador y acompaña tus consultas a OpenAI. Evitá incluir datos sensibles.</p>
+          <p class="profile-disclosure muted"><span class="icon" aria-hidden="true">◎</span> Tu perfil se guarda en este navegador y acompaña tus consultas a OpenAI. Evita incluir datos sensibles.</p>
           <p id="profile-status" role="status"></p>
           <div class="profile-actions flex flex-wrap justify-between gap-3 compact:action-pair">
             <button type="button" id="skip-profile">Omitir por ahora</button>
@@ -84,13 +84,13 @@
       </section>
       <div id="welcome">
         <span class="hero-seal" aria-hidden="true"><img src="/logo-constitucional.png" alt=""></span>
-        <h2>¿Qué querés consultar?</h2>
+        <h2>¿Qué quieres consultar?</h2>
         <button id="start" class="primary"><span class="icon" aria-hidden="true">✦</span> Conversar</button>
       </div>
       <div id="messages" role="log" aria-label="Transcripción de la conversación"></div>
       <form id="composer" hidden>
         <label class="sr-only" for="question">Tu consulta</label>
-        <textarea id="question" rows="2" maxlength="8000" placeholder="Escribí tu consulta…"></textarea>
+        <textarea id="question" rows="2" maxlength="8000" placeholder="Escribe tu consulta…"></textarea>
         <details class="query-options">
           <summary>Modo y fecha de consulta</summary>
           <div class="field-grid">
@@ -139,7 +139,7 @@
           <label for="api-key">Clave API de OpenAI</label>
           <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" aria-label="Crear clave de OpenAI (abre en otra pestaña)">Crear clave <span aria-hidden="true">↗</span></a>
         </div>
-        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Ingresá tu clave" aria-describedby="key-note">
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Ingresa tu clave" aria-describedby="key-note">
         <p id="key-note" class="muted">Se guarda en el servidor local.</p>
       </div>
       <div class="field-grid">
@@ -149,7 +149,7 @@
         </div>
         <div class="field">
           <label for="accent">Acento</label>
-          <select id="accent"><option value="chapin">Guatemalteco (chapín)</option><option value="neutro">Latinoamericano neutro</option></select>
+          <select id="accent"><option value="neutro">Latinoamericano neutro</option><option value="chapin">Guatemalteco (chapín)</option></select>
         </div>
       </div>
       <div class="voice-preview">

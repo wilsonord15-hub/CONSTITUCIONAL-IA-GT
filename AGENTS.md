@@ -13,3 +13,10 @@ sube el resultado precompilado. El proyecto de destino es
 
 Conserva este flujo si el build falla. Diagnostica el fallo local antes de volver a
 intentar la publicación. Mantén `.vercel/` fuera del control de versiones.
+
+## Tratamiento en español
+
+Usa el tuteo en los textos de la interfaz. El Dr. se dirige a la persona de tú
+de forma predeterminada. Cuando esté seleccionado el acento guatemalteco
+(chapín), usa voseo natural en las respuestas del Dr. y el saludo hablado.
+Conserva intacto el texto de las citas literales.

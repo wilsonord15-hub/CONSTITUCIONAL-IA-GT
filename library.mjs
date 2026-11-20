@@ -30,7 +30,7 @@ export async function documentSections(name, contents) {
       const { text } = await extractText(pdf);
       const missing = text.flatMap((page, index) => page.trim() ? [] : [index + 1]);
       if (missing.length) {
-        throw new Error('El PDF contiene páginas sin texto extraíble (' + missing.join(', ') + '). Subí una versión con OCR para indexar todo el documento.');
+        throw new Error('El PDF contiene páginas sin texto extraíble (' + missing.join(', ') + '). Sube una versión con OCR para indexar todo el documento.');
       }
       return text.map((page, index) => ({ label: 'Página ' + (index + 1), text: page }));
     } finally {
